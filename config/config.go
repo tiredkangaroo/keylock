@@ -1,0 +1,73 @@
+package config
+
+import (
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+
+	"github.com/BurntSushi/toml"
+)
+
+const CONFIG_FILE = "keylock.toml"
+
+var (
+	ErrUnknownKeys = fmt.Errorf("unknown keys in config file")
+	ErrMissingKeys = fmt.Errorf("missing required keys in config file")
+)
+
+type Config struct {
+	Addr  string `toml:"addr"`
+	Debug bool   `toml:"debug"`
+
+	dirname string // lowercase to avoid toml
+}
+
+var DefaultConfig *Config = &Config{
+	Addr:    ":0",
+	Debug:   false,
+	dirname: ".",
+}
+
+func init() {
+	file, err := getConfigFile()
+	if err != nil {
+		slog.Error("failed to get config file", "error", err)
+		return
+	}
+	defer file.Close()
+	_, err = toml.NewDecoder(file).Decode(DefaultConfig)
+	if err != nil {
+		slog.Error("failed to decode config file", "error", err)
+		return
+	}
+	slog.Info("config loaded", "addr", DefaultConfig.Addr, "debug", DefaultConfig.Debug, "dirname", DefaultConfig.dirname)
+}
+
+func getConfigFile() (*os.File, error) {
+	if file, err := os.Open(CONFIG_FILE); err == nil {
+		slog.Info("using config file from current directory")
+		DefaultConfig.dirname = "."
+		return file, nil
+	} else {
+		slog.Error("opening current dir config", "error", err)
+	}
+
+	execfile, err := os.Executable()
+	if err != nil {
+		slog.Error("failed to get executable path (config init failed)", "error", err)
+		return nil, fmt.Errorf("getting executable path: %w", err)
+	}
+	execdir := filepath.Dir(execfile)
+	execdirConfig := filepath.Join(execdir, CONFIG_FILE)
+
+	if file, err := os.Open(execdirConfig); err == nil {
+		slog.Info("using config file from executable directory", "path", execdirConfig)
+		DefaultConfig.dirname = execdir
+		return file, nil
+	} else {
+		slog.Error("opening exec dir config", "error", err)
+	}
+	slog.Info("using default config")
+	return nil, nil
+}

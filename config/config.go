@@ -20,7 +20,11 @@ type Config struct {
 	Addr  string `toml:"addr"`
 	Debug bool   `toml:"debug"`
 
-	dirname string // lowercase to avoid toml
+	dirname string // lowercase to avoid toml, is working directory ("./.keylock") or "/home/.keylock" or similar
+}
+
+func (c *Config) Dirname() string {
+	return c.dirname
 }
 
 var DefaultConfig *Config = &Config{
@@ -36,6 +40,11 @@ func init() {
 		return
 	}
 	defer file.Close()
+	if err := os.MkdirAll(DefaultConfig.dirname, 0755); err != nil {
+		slog.Error("failed to create config directory (exit)", "dirname", DefaultConfig.dirname, "error", err)
+		os.Exit(1)
+	}
+
 	_, err = toml.NewDecoder(file).Decode(DefaultConfig)
 	if err != nil {
 		slog.Error("failed to decode config file", "error", err)
@@ -53,12 +62,12 @@ func getConfigFile() (*os.File, error) {
 		slog.Error("opening current dir config", "error", err)
 	}
 
-	execfile, err := os.Executable()
+	execfile, err := os.UserHomeDir()
 	if err != nil {
 		slog.Error("failed to get executable path (config init failed)", "error", err)
 		return nil, fmt.Errorf("getting executable path: %w", err)
 	}
-	execdir := filepath.Dir(execfile)
+	execdir := filepath.Join(filepath.Dir(execfile), ".keylock")
 	execdirConfig := filepath.Join(execdir, CONFIG_FILE)
 
 	if file, err := os.Open(execdirConfig); err == nil {

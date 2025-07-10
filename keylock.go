@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/tiredkangaroo/keylock/config"
+	"github.com/tiredkangaroo/keylock/database"
 	"github.com/valyala/fasthttp"
 )
 
@@ -13,6 +14,14 @@ type Key interface {
 }
 
 func main() {
+	db, err := database.Database()
+	if err != nil {
+		slog.Error("connecting to database failed (fatal)", "error", err)
+		return
+	}
+	defer db.Close()
+	slog.Info("opened database")
+
 	listener, err := net.Listen("tcp4", config.DefaultConfig.Addr) // NOTE: research, put tcp4 bc i dont think fasthttp supports ipv6
 	if err != nil {
 		slog.Error("creating listener at addr failed (fatal)", "addr", config.DefaultConfig.Addr, "error", err)

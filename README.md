@@ -9,3 +9,5 @@ im using go because it cross compiles EVERYWHEREEE (and i love go)
 - otp
 - password generation
 - password strength checking
+
+note make command for setup

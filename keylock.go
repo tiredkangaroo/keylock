@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/tiredkangaroo/keylock/database"
+	"github.com/tiredkangaroo/keylock/server"
 )
 
 type Key interface {
@@ -57,9 +58,9 @@ func main() {
 	// 	slog.Error("serving requests failed (fatal)", "addr", listener.Addr().String(), "error", err)
 	// 	return
 	// }
-	server := &Server{}
-	server.Init(db)
-	if err := server.Start(); err != nil {
+	s := &server.Server{}
+	s.Init(db)
+	if err := s.Start(); err != nil {
 		slog.Error("server failed (fatal)", "error", err)
 		return
 	}

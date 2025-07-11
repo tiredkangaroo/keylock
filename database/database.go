@@ -13,6 +13,10 @@ import (
 	"github.com/tiredkangaroo/keylock/utils"
 )
 
+// BIG NOTE: code should be the same for every password for a user! we do not want to store the code in the db.
+// my first idea is that we check for other passwords for the user, if they have the same code, we use that code to decrypt the password.
+// but that's super inefficient and its 3am rn.
+
 var enc_key = make([]byte, 32) // 32 bytes for aes-256-gcm
 
 func init() {

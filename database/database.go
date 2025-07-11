@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base32"
+	"encoding/hex"
 	"fmt"
 	"os"
 
@@ -16,7 +16,16 @@ import (
 var enc_key = make([]byte, 32) // 32 bytes for aes-256-gcm
 
 func init() {
-	base32.StdEncoding.Decode(enc_key, []byte(os.Getenv("KEY1_ENCRYPTION_KEY")))
+	enc_key_str := os.Getenv("ENCRYPTION_KEY")
+	if enc_key_str == "" {
+		panic("ENCRYPTION_KEY environment variable is not set")
+	}
+	if len(enc_key_str) != 64 {
+		panic(fmt.Errorf("ENCRYPTION_KEY must be 64 characters long (32 bytes encoded), got %d characters", len(enc_key_str)))
+	}
+	if _, err := hex.Decode(enc_key, []byte(enc_key_str)); err != nil {
+		panic(fmt.Errorf("decoding ENCRYPTION_KEY: %w", err))
+	}
 }
 
 type DB struct {
@@ -48,8 +57,8 @@ type User struct {
 }
 
 type Password struct {
-	ID     int    `json:"id"`
-	UserID int    `json:"user_id"`
+	ID     int64  `json:"id"`
+	UserID int64  `json:"user_id"`
 	Name   string `json:"name"`
 
 	Value     []byte `json:"-"`
@@ -109,6 +118,8 @@ func Database() (*DB, error) {
 }
 
 // SaveUser saves a user to the database (oh great explanation, i know).
+// Expected fields:
+// - Name
 func (db *DB) SaveUser(u *User) error {
 	// name is literally the only thing we're taking from the passed in struct
 	// we'll generate the key1, key1_nonce, and key2_salt here
@@ -134,7 +145,6 @@ func (db *DB) SaveUser(u *User) error {
 	if err != nil {
 		return fmt.Errorf("inserting user: %w", err)
 	}
-	var err error
 	u.ID, err = result.LastInsertId()
 	if err != nil {
 		return fmt.Errorf("getting last insert id: %w", err)
@@ -142,6 +152,11 @@ func (db *DB) SaveUser(u *User) error {
 	return nil
 }
 
+// SavePassword saves a password to the database.
+// expected fields:
+// - UserID
+// - Value
+// - Name
 func (db *DB) SavePassword(code string, pwd *Password) error {
 	// steps:
 	// - we need to get the user by id
@@ -181,9 +196,64 @@ func (db *DB) SavePassword(code string, pwd *Password) error {
 		return fmt.Errorf("encrypting password: %w", err)
 	}
 	stmt = `INSERT INTO passwords (user_id, name, value, value_nonce) VALUES (?, ?, ?, ?)`
-	_, err = db.sql.Exec(stmt, pwd.UserID, pwd.Name, encryptedValue, nonce)
+	result, err := db.sql.Exec(stmt, pwd.UserID, pwd.Name, encryptedValue, nonce)
+	if err != nil {
+		return fmt.Errorf("inserting password: %w", err)
+	}
+	pwd.ID, err = result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("getting last insert id: %w", err)
+	}
+	return nil
 }
 
-func (db *DB) RetrievePassword(pwd *Password) error {
+// password will be set into the value field
+// expected fields:
+// - user id
+// - name
+func (db *DB) RetrievePassword(code string, pwd *Password) error {
+	// steps:
+	// - get password by name and user id (value and value_nonce)
+	// - get the user by id
+	// - get the key1, decrypt it with enc_key and key1_nonce (key1)
+	// - get the key2_salt from the user and pbkdf2 with code + salt to get key2 (key2)
+	// - decrypt the password with key1 + key2 hkdf'd
+	// - set the password value to the decrypted value with value_nonce
+	stmt := `SELECT id, value, value_nonce FROM passwords WHERE user_id = ? AND name = ?`
+	err := db.sql.QueryRow(stmt, pwd.UserID, pwd.Name).Scan(&pwd.ID, &pwd.Value, &pwd.Key2Nonce)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("password with name %s for user id %d not found", pwd.Name, pwd.UserID)
+		}
+		return fmt.Errorf("querying password: %w", err)
+	}
 
+	stmt = `SELECT key1, key1_nonce, key2_salt FROM users WHERE id = ?`
+	var key1_raw, key1_nonce, key2_salt []byte
+	err = db.sql.QueryRow(stmt, pwd.UserID).Scan(&key1_raw, &key1_nonce, &key2_salt)
+	if err != nil {
+		if err == sql.ErrNoRows { // unlikely
+			return fmt.Errorf("user with id %d not found", pwd.UserID)
+		}
+		return fmt.Errorf("querying user: %w", err)
+	}
+
+	key1, err := utils.Decrypt(enc_key, key1_nonce, key1_raw) // decrypt key1
+	if err != nil {
+		return fmt.Errorf("decrypting key1: %w", err)
+	}
+	key2, err := pbkdf2.Key(sha256.New, code, key2_salt, 1e5, 32) // pbkdf2 for key2
+	if err != nil {
+		return fmt.Errorf("pbkdf2 key: %w", err)
+	}
+
+	key := utils.KeyFromKeys(key1, key2) // hkdf the keys together
+
+	decryptedValue, err := utils.Decrypt(key, pwd.Key2Nonce, pwd.Value) // decrypt the password
+	if err != nil {
+		return fmt.Errorf("decrypting password: %w", err)
+	}
+
+	pwd.Value = decryptedValue // set the value to the decrypted value
+	return nil
 }

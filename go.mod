@@ -4,6 +4,7 @@ go 1.24.2
 
 require (
 	github.com/BurntSushi/toml v1.5.0
+	github.com/goccy/go-reflect v1.2.0
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/mattn/go-sqlite3 v1.14.28
 )

@@ -8,8 +8,6 @@ import (
 	"github.com/tiredkangaroo/keylock/database"
 )
 
-// i puffified my fiber 😭 oh how i wish puff was working
-
 func APINewAccount(s *Server) fiber.Handler {
 	type expectedBody struct {
 		Name string `json:"name"`

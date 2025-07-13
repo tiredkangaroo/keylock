@@ -1,6 +1,8 @@
 package database
 
 import (
+	"bytes"
+	"crypto/hkdf"
 	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
@@ -105,6 +107,7 @@ func Database() (*DB, error) {
 		key1 BLOB NOT NULL,
 		key1_nonce BLOB NOT NULL,
 		key2_salt BLOB NOT NULL,
+		key2_verifier BLOB NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`
 	passwordTableCreate := `CREATE TABLE IF NOT EXISTS passwords (
@@ -167,9 +170,20 @@ func (db *DB) SaveUser(name, masterPassword string) (id int64, sessionCode strin
 		return
 	}
 
+	key2, err := pbkdf2.Key(sha256.New, masterPassword, key2_salt, 1e6, 32)
+	if err != nil {
+		err = fmt.Errorf("pbkdf2 key: %w", err)
+		return
+	}
+	key2_verifier, err := hkdf.Key(sha256.New, append(key2, enc_key...), nil, "key2-verifier", 32)
+	if err != nil {
+		err = fmt.Errorf("hkdf key2 verifier: %w", err)
+		return
+	}
+
 	// id and created_at are defaulted by the database, so we don't need to set them
-	stmt := `INSERT INTO users (name, key1, key1_nonce, key2_salt) VALUES (?, ?, ?, ?)`
-	result, err := db.sql.Exec(stmt, name, key_1, key1_nonce, key2_salt)
+	stmt := `INSERT INTO users (name, key1, key1_nonce, key2_salt, key2_verifier) VALUES (?, ?, ?, ?, ?)`
+	result, err := db.sql.Exec(stmt, name, key_1, key1_nonce, key2_salt, key2_verifier)
 	if err != nil {
 		err = fmt.Errorf("inserting user: %w", err)
 		return
@@ -181,11 +195,6 @@ func (db *DB) SaveUser(name, masterPassword string) (id int64, sessionCode strin
 		return
 	}
 
-	key2, err := pbkdf2.Key(sha256.New, masterPassword, key2_salt, 1e6, 32)
-	if err != nil {
-		err = fmt.Errorf("pbkdf2 key: %w", err)
-		return
-	}
 	sessionCode = hex.EncodeToString(key2[:30])     // 30 bytes for session code
 	rawCode := binary.BigEndian.Uint16(key2[30:32]) // 2 bytes for code, uint16
 	code = fmt.Sprintf("%05d", rawCode)             // 5 digits
@@ -203,9 +212,9 @@ func (db *DB) SavePassword(userid int64, name, key2, value string) error {
 		return fmt.Errorf("decoding key2 with hex: %w", err)
 	}
 
-	stmt := `SELECT key1, key1_nonce FROM users WHERE id = ?` // step 1: get the user to retrieve key1
-	var key1_raw, key1_nonce []byte
-	err = db.sql.QueryRow(stmt, userid).Scan(&key1_raw, &key1_nonce)
+	stmt := `SELECT key1, key1_nonce, key2_verifier FROM users WHERE id = ?` // step 1: get the user to retrieve key1
+	var key1_raw, key1_nonce, key2_verifier []byte
+	err = db.sql.QueryRow(stmt, userid).Scan(&key1_raw, &key1_nonce, &key2_verifier)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("user with id %d not found", userid)
@@ -213,29 +222,38 @@ func (db *DB) SavePassword(userid int64, name, key2, value string) error {
 		return fmt.Errorf("querying user: %w", err)
 	}
 
-	key1, err := utils.Decrypt(enc_key, key1_nonce, key1_raw) // step 2: decrypt key1
+	// step 2: verify key2
+	hkdf_key2, err := hkdf.Key(sha256.New, append(key2_decoded, enc_key...), nil, "key2-verifier", 32)
+	if err != nil {
+		return fmt.Errorf("hkdf key2 verifier: %w", err)
+	}
+	if !bytes.Equal(hkdf_key2, key2_verifier) {
+		return fmt.Errorf("key2 verification failed")
+	}
+
+	key1, err := utils.Decrypt(enc_key, key1_nonce, key1_raw) // step 3: decrypt key1
 	if err != nil {
 		return fmt.Errorf("decrypting key1: %w", err)
 	}
 
-	// step 3: generate nonces for layer1 and layer2 encryption
+	// step 4: generate nonces for layer1 and layer2 encryption
 	nonces := make([]byte, 24)  // 12 bytes for layer1 nonce, 12 bytes for layer2 nonce
 	rand.Read(nonces)           // generate random nonces
 	layer1_nonce := nonces[:12] // first 12 bytes for layer1 nonce
 	layer2_nonce := nonces[12:] // last 12 bytes for layer2 nonce
 
-	// step 4: encrypt the value with key2 to make layer 1
+	// step 5: encrypt the value with key2 to make layer 1
 	layer1, err := utils.Encrypt(key2_decoded, layer1_nonce, []byte(value))
 	if err != nil {
 		return fmt.Errorf("encrypting layer 1: %w", err)
 	}
-	// step 5: encrypt the layer1 with key1 to make layer 2 (final value)
+	// step 6: encrypt the layer1 with key1 to make layer 2 (final value)
 	layer2, err := utils.Encrypt(key1, layer2_nonce, layer1)
 	if err != nil {
 		return fmt.Errorf("encrypting layer 2: %w", err)
 	}
 
-	// step 6: insert the password into the database
+	// step 7: insert the password into the database
 	stmt = `INSERT INTO passwords (user_id, name, value, value_layer1_nonce, value_layer2_nonce) VALUES (?, ?, ?, ?, ?)`
 	_, err = db.sql.Exec(stmt, userid, name, layer2, layer1_nonce, layer2_nonce)
 	if err != nil {
@@ -249,6 +267,7 @@ func (db *DB) SavePassword(userid int64, name, key2, value string) error {
 // - user id
 // - name
 func (db *DB) RetrievePassword(userid int64, name, key2 string) (pwd []byte, err error) {
+	// i dont think we need to verify key2 here since if u try to decrypt it with the wrong key2, it will just return an error (gcm)
 	// steps:
 	// - decode key2 from hex to bytes
 	// - get password by name and user id (value, value_layer1_nonce and value_layer2_nonce)

@@ -57,7 +57,8 @@ func HandlerJSON[T any](h func(c *fiber.Ctx, body T) error) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		body, err := parseJSONBody[T](c)
 		if err != nil {
-			return APIError(c, fiber.StatusBadRequest, err, "invalid request body")
+			// we can give the parsing error to the user
+			return APIError(c, fiber.StatusBadRequest, err, fmt.Sprintf("invalid request body: %s", err.Error()))
 		}
 		return h(c, body)
 	}

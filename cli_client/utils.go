@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -105,4 +107,22 @@ func getKeyringData() (KeyringData, error) {
 		return KeyringData{}, fmt.Errorf("failed to unmarshal keyring data: %w", err)
 	}
 	return data, nil
+}
+
+func getKey2(krdata KeyringData) (string, error) {
+	code, err := promptRequiredText("5-digit code: ")
+	if err != nil {
+		return "", fmt.Errorf("failed to get code: %w", err)
+	}
+	if len(code) != 5 {
+		return "", fmt.Errorf("code must be exactly 5 characters long")
+	}
+	codeuint, err := strconv.ParseUint(code, 10, 16)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse code (hint: the code is a 5-digit NUMBER): %w", err)
+	}
+	codeBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(codeBytes, uint16(codeuint))
+	key2 := fmt.Sprintf("%s%x", krdata.SessionCode, codeBytes)
+	return key2, nil
 }

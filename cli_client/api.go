@@ -35,7 +35,7 @@ func signup() error {
 	if err != nil {
 		return fmt.Errorf("failed to create account: %w", err)
 	}
-	fmt.Printf("Account created successfully! Your user ID is %d.\n", resp.UserID)
+	fmt.Printf("\nAccount created successfully! Your user ID is %d.\n", resp.UserID)
 
 	krdata, _ := json.Marshal(KeyringData{
 		UserID:      resp.UserID,
@@ -104,6 +104,33 @@ func savePassword() error {
 	if err != nil {
 		return fmt.Errorf("failed to save password: %w", err)
 	}
-	fmt.Printf("Password for '%s' saved successfully!\n", name)
+	fmt.Printf("\nPassword for '%s' saved successfully!\n", name)
+	return nil
+}
+
+func retrievePassword() error {
+	krdata, err := getKeyringData()
+	if err != nil {
+		return fmt.Errorf("failed to get keyring data (hint: make sure you're signed in): %w", err)
+	}
+	key2, err := getKey2(krdata)
+	if err != nil {
+		return fmt.Errorf("failed to get key2: %w", err)
+	}
+
+	name, err := promptRequiredText("name of password (usually a website or service plus the account name, e.g. 'google-ajinest6'): ")
+	if err != nil {
+		return fmt.Errorf("failed to get name: %w", err)
+	}
+
+	_, resp, err := performRequest[api.RetrievePasswordResponse](new(http.Request), http.MethodPost, "/api/passwords/retrieve", api.RetrievePasswordRequest{
+		UserID: krdata.UserID,
+		Name:   name,
+		Key2:   key2,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to retrieve password: %w", err)
+	}
+	fmt.Printf("Password for '%s': %s\n", name, resp.Value)
 	return nil
 }

@@ -14,6 +14,7 @@ const (
 	CommandSignup
 	CommandMe
 	CommandSavePassword
+	CommandRetrievePassword
 )
 
 var cmd Command
@@ -33,8 +34,10 @@ func init() {
 		cmd = CommandSignup
 	case "me":
 		cmd = CommandMe
-	case "save-password":
+	case "set-password":
 		cmd = CommandSavePassword
+	case "get-password":
+		cmd = CommandRetrievePassword
 	default:
 		cmd = CommandUnknown
 	}
@@ -50,19 +53,20 @@ func main() {
 	case CommandSignup:
 		if err := signup(); err != nil {
 			println("Error:", err.Error())
-			return
 		}
 	case CommandMe:
 		if err := me(); err != nil {
 			println("Error:", err.Error())
-			return
 		}
 	case CommandSavePassword:
 		if err := savePassword(); err != nil {
 			println("Error:", err.Error())
-			return
+		}
+	case CommandRetrievePassword:
+		if err := retrievePassword(); err != nil {
+			println("Error:", err.Error())
 		}
 	default:
-		println("Unknown command. Available commands: signup, me")
+		println("Unknown command. Available commands: signup, me, set-password, get-password")
 	}
 }

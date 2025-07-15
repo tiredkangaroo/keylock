@@ -1,13 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"syscall"
@@ -15,46 +11,6 @@ import (
 	"github.com/zalando/go-keyring"
 	"golang.org/x/term"
 )
-
-func performRequest[T any](req *http.Request, method, path string, body any) (resp *http.Response, v T, err error) {
-	req.Method = method
-	if req.URL == nil {
-		req.URL = &url.URL{Scheme: "http", Host: SERVER, Path: path}
-	} else {
-		req.URL.Path = path
-	}
-	var reqbody io.ReadCloser
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return nil, v, fmt.Errorf("failed to marshal body: %w", err)
-		}
-		reqbody = io.NopCloser(bytes.NewReader(data))
-	}
-	req.Body = reqbody
-
-	resp, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, v, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respbody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, v, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, v, fmt.Errorf("error from server: %s", respbody)
-	}
-
-	err = json.Unmarshal(respbody, &v)
-	if err != nil {
-		return nil, v, fmt.Errorf("failed to unmarshal response body: %w", err)
-	}
-
-	return
-}
 
 func promptText(prompt string) (string, error) {
 	fmt.Printf("%s", prompt)

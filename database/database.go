@@ -72,24 +72,15 @@ func (db *DB) Close() error {
 // this allows for unilateral key1 rotation.
 
 type User struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-
-	Key1      []byte `json:"-"`
-	Key1Nonce []byte `json:"-"`
-	Key2Salt  []byte `json:"-"`
-
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
 	CreatedAt string `json:"created_at"`
 }
 
 type Password struct {
-	ID     int64  `json:"id"`
-	UserID int64  `json:"user_id"`
-	Name   string `json:"name"`
-
-	Value     []byte `json:"-"`
-	Key2Nonce []byte `json:"-"`
-
+	ID        int64  `json:"id"`
+	UserID    int64  `json:"user_id"`
+	Name      string `json:"name"`
 	CreatedAt string `json:"created_at"`
 }
 
@@ -329,4 +320,33 @@ func (db *DB) RetrievePassword(userid int64, name, key2 string) (pwd []byte, err
 		return
 	}
 	return
+}
+
+func (db *DB) ListPasswords(userID int64) ([]Password, error) {
+	stmt := `SELECT id, name, created_at FROM passwords WHERE user_id = ?`
+	rows, err := db.sql.Query(stmt, userID)
+	if err != nil {
+		return nil, fmt.Errorf("querying passwords: %w", err)
+	}
+	defer rows.Close()
+	var passwords []Password
+	for rows.Next() {
+		pwd, err := scanPassword(rows, userID)
+		if err != nil {
+			return nil, fmt.Errorf("scanning password: %w", err)
+		}
+		passwords = append(passwords, pwd)
+	}
+	return passwords, nil
+}
+
+// expects id, name, created_at
+func scanPassword(rows *sql.Rows, userID int64) (Password, error) {
+	pwd := Password{
+		UserID: userID,
+	}
+	if err := rows.Scan(&pwd.ID, &pwd.Name, &pwd.CreatedAt); err != nil {
+		return Password{}, fmt.Errorf("scanning password row: %w", err)
+	}
+	return pwd, nil
 }

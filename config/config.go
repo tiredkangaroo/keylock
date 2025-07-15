@@ -20,6 +20,13 @@ type Config struct {
 	Addr  string `toml:"addr"`
 	Debug bool   `toml:"debug"`
 
+	Redis struct {
+		Hostport string `toml:"hostport"`
+		Password string `toml:"password"`
+		DB       int    `toml:"db"`
+		Timeout  int    `toml:"timeout"` // in seconds
+	} `toml:"redis"`
+
 	dirname string // lowercase to avoid toml, is working directory ("./.keylock") or "/home/.keylock" or similar
 }
 

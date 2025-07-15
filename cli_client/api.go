@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 
@@ -13,7 +12,7 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-const SERVER = "localhost:8755"
+const SERVER = "http://localhost:8755"
 
 var stdinReader = bufio.NewReader(os.Stdin)
 
@@ -28,25 +27,30 @@ func signup() error {
 		return fmt.Errorf("failed to get password: %w", err)
 	}
 
-	_, resp, err := performRequest[api.NewAccountResponse](new(http.Request), http.MethodPost, "/api/accounts/new", api.NewAccountRequest{
-		Name:           username,
-		MasterPassword: mp,
-	})
+	resp := &api.NewAccountResponse{}
+	err = api.PerformRequest(SERVER, &api.NewAccountRequest{
+		Body: api.NewAccountRequestBody{
+			Name:           username,
+			MasterPassword: mp,
+		},
+	}, resp)
+
 	if err != nil {
 		return fmt.Errorf("failed to create account: %w", err)
 	}
-	fmt.Printf("\nAccount created successfully! Your user ID is %d.\n", resp.UserID)
+
+	fmt.Printf("\nAccount created successfully! Your user ID is %d.\n", resp.Body.UserID)
 
 	krdata, _ := json.Marshal(KeyringData{
-		UserID:      resp.UserID,
-		SessionCode: resp.SessionCode,
+		UserID:      resp.Body.UserID,
+		SessionCode: resp.Body.SessionCode,
 	})
 	err = keyring.Set(service, currentUser.Username, string(krdata))
 	if err != nil {
 		return fmt.Errorf("failed to save session code to keyring: %w", err)
 	}
 
-	fmt.Printf("Please remember this code in order to use this session: %s\n", resp.Code)
+	fmt.Printf("Please remember this code in order to use this session: %s\n", resp.Body.Code)
 
 	return nil
 }
@@ -95,15 +99,20 @@ func savePassword() error {
 		return fmt.Errorf("failed to get password: %w", err)
 	}
 
-	_, _, err = performRequest[api.NewPasswordResponse](new(http.Request), http.MethodPost, "/api/passwords/new", api.NewPasswordRequest{
-		UserID: krdata.UserID,
-		Name:   name,
-		Key2:   key2,
-		Value:  pwd,
-	})
+	resp := &api.NewPasswordResponse{}
+	err = api.PerformRequest(SERVER, &api.NewPasswordRequest{
+		Body: api.NewPasswordRequestBody{
+			UserID: krdata.UserID,
+			Name:   name,
+			Key2:   key2,
+			Value:  pwd,
+		},
+	}, resp)
+
 	if err != nil {
 		return fmt.Errorf("failed to save password: %w", err)
 	}
+
 	fmt.Printf("\nPassword for '%s' saved successfully!\n", name)
 	return nil
 }
@@ -123,14 +132,18 @@ func retrievePassword() error {
 		return fmt.Errorf("failed to get name: %w", err)
 	}
 
-	_, resp, err := performRequest[api.RetrievePasswordResponse](new(http.Request), http.MethodPost, "/api/passwords/retrieve", api.RetrievePasswordRequest{
-		UserID: krdata.UserID,
-		Name:   name,
-		Key2:   key2,
-	})
+	resp := &api.RetrievePasswordResponse{}
+	err = api.PerformRequest(SERVER, &api.RetrievePasswordRequest{
+		Body: api.RetrievePasswordRequestBody{
+			UserID: krdata.UserID,
+			Name:   name,
+			Key2:   key2,
+		},
+	}, resp)
+
 	if err != nil {
 		return fmt.Errorf("failed to retrieve password: %w", err)
 	}
-	fmt.Printf("Password for '%s': %s\n", name, resp.Value)
+	fmt.Printf("Password for '%s': %s\n", name, resp.Body.Value)
 	return nil
 }

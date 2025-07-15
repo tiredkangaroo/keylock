@@ -53,3 +53,15 @@ func APIRetrievePassword(s *Server) fiber.Handler {
 		})
 	})
 }
+
+func APIListPasswords(s *Server) fiber.Handler {
+	return HandlerJSON(func(c *fiber.Ctx, data api.ListPasswordsRequest) error {
+		passwords, err := s.db.ListPasswords(data.UserID)
+		if err != nil {
+			return APIError(c, http.StatusBadRequest, err, "failed to list passwords")
+		}
+		return c.Status(fiber.StatusOK).JSON(api.ListPasswordsResponse{
+			Passwords: passwords,
+		})
+	})
+}

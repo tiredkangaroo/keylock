@@ -51,19 +51,6 @@ func parseJSONBody[T any](c *fiber.Ctx) (T, error) {
 	return data, nil
 }
 
-// HandlerJSON returns a fiber.Handler that expects a request with JSON request body and unmarshals it into the provided type.
-// It will call the provided function with the fiber context and the unmarshaled body.
-func HandlerJSON[T any](h func(c *fiber.Ctx, body T) error) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		body, err := parseJSONBody[T](c)
-		if err != nil {
-			// we can give the parsing error to the user
-			return APIError(c, fiber.StatusBadRequest, err, fmt.Sprintf("invalid request body: %s", err.Error()))
-		}
-		return h(c, body)
-	}
-}
-
 func APIError(c *fiber.Ctx, status int, real error, display string) error {
 	slog.Error(display, "error", real)
 	return c.Status(status).JSON(fiber.Map{

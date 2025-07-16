@@ -27,7 +27,7 @@ import (
 
 var enc_key = make([]byte, 32) // 32 bytes for aes-256-gcm
 
-func init() {
+func Init() {
 	enc_key_str := os.Getenv("ENCRYPTION_KEY")
 	if enc_key_str == "" {
 		panic("ENCRYPTION_KEY environment variable is not set")

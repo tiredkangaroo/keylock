@@ -1,67 +1,66 @@
 package server
 
 import (
+	"fmt"
 	"log/slog"
-	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/tiredkangaroo/keylock/api"
 )
 
 func APINewAccount(s *Server) fiber.Handler {
-	return HandlerJSON(func(c *fiber.Ctx, body api.NewAccountRequest) error {
-		id, sessionCode, code, err := s.db.SaveUser(body.Name, body.MasterPassword)
+	return api.Handler(func(req *api.NewAccountRequest) (*api.NewAccountResponse, error) {
+		id, sessionCode, code, err := s.db.SaveUser(req.Body.Name, req.Body.MasterPassword)
 		if err != nil {
-			return APIError(c, fiber.StatusBadRequest, err, "failed to save user")
+			return nil, err
 		}
 
-		slog.Info("saved user", "name", body.Name, "id", id)
-		return c.Status(fiber.StatusOK).JSON(api.NewAccountResponse{
-			UserID:      id,
-			SessionCode: sessionCode,
-			Code:        code,
-		})
+		slog.Info("saved user", "name", req.Body.Name, "id", id)
+		return &api.NewAccountResponse{
+			Body: api.NewAccountResponseBody{
+				UserID:      id,
+				SessionCode: sessionCode,
+				Code:        code,
+			},
+		}, nil
 	})
 }
 
 func APINewPassword(s *Server) fiber.Handler {
-	type expectedBody struct {
-		UserID int64  `json:"user_id"`
-		Name   string `json:"name"`
-		Key2   string `json:"key2"`
-		Value  string `json:"value"`
-	}
-	return HandlerJSON(func(c *fiber.Ctx, body api.NewPasswordRequest) error {
-		err := s.db.SavePassword(body.UserID, body.Name, body.Key2, body.Value)
+	return api.Handler(func(req *api.NewPasswordRequest) (*api.NewPasswordResponse, error) {
+		err := s.db.SavePassword(req.Body.UserID, req.Body.Name, req.Body.Key2, req.Body.Value)
 		if err != nil {
-			return APIError(c, fiber.StatusBadRequest, err, err.Error()) // make sure err does NOT info leak otherwise we're so cooked
+			return nil, err
 		}
-		slog.Info("saved password", "name", body.Name, "user_id", body.UserID)
-
-		return c.Status(fiber.StatusOK).JSON(api.NewPasswordResponse{})
+		slog.Info("saved password", "name", req.Body.Name, "user_id", req.Body.UserID)
+		return &api.NewPasswordResponse{}, nil
 	})
 }
 
 func APIRetrievePassword(s *Server) fiber.Handler {
-	return HandlerJSON(func(c *fiber.Ctx, body api.RetrievePasswordRequest) error {
-		val, err := s.db.RetrievePassword(body.UserID, body.Name, body.Key2)
+	return api.Handler(func(req *api.RetrievePasswordRequest) (*api.RetrievePasswordResponse, error) {
+		val, err := s.db.RetrievePassword(req.Body.UserID, req.Body.Name, req.Body.Key2)
 		if err != nil {
-			return APIError(c, http.StatusBadRequest, err, "password not found or incorrect code")
+			return nil, fmt.Errorf("password not found or incorrect code: %w", err)
 		}
-		return c.Status(fiber.StatusOK).JSON(api.RetrievePasswordResponse{
-			Value: string(val),
-		})
+		return &api.RetrievePasswordResponse{
+			Body: api.RetrievePasswordResponseBody{
+				Value: string(val),
+			},
+		}, nil
 	})
 }
 
 func APIListPasswords(s *Server) fiber.Handler {
-	return HandlerJSON(func(c *fiber.Ctx, data api.ListPasswordsRequest) error {
-		passwords, err := s.db.ListPasswords(data.UserID)
+	return api.Handler(func(req *api.ListPasswordsRequest) (*api.ListPasswordsResponse, error) {
+		passwords, err := s.db.ListPasswords(req.User.ID)
 		if err != nil {
-			return APIError(c, http.StatusBadRequest, err, "failed to list passwords")
+			return nil, fmt.Errorf("failed to list passwords: %w", err)
 		}
-		return c.Status(fiber.StatusOK).JSON(api.ListPasswordsResponse{
-			Passwords: passwords,
-		})
+		return &api.ListPasswordsResponse{
+			Body: api.ListPasswordsResponseBody{
+				Passwords: passwords,
+			},
+		}, nil
 	})
 }

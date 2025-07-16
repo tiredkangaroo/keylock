@@ -26,6 +26,7 @@ func signup() error {
 	if err != nil {
 		return fmt.Errorf("failed to get password: %w", err)
 	}
+	fmt.Println()
 
 	resp := &api.NewAccountResponse{}
 	err = api.PerformRequest(SERVER, &api.NewAccountRequest{

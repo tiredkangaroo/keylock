@@ -40,7 +40,7 @@ var DefaultConfig *Config = &Config{
 	dirname: ".",
 }
 
-func init() {
+func Init() {
 	file, err := getConfigFile()
 	if err != nil {
 		slog.Error("failed to get config file", "error", err)

@@ -35,6 +35,7 @@ func (s *Server) Start() error {
 	api.Post("/accounts/new", APINewAccount(s))
 	api.Post("/passwords/new", APINewPassword(s))
 	api.Post("/passwords/retrieve", APIRetrievePassword(s))
+	api.Post("/passwords/list", APIListPasswords(s))
 
 	return app.Listener(listener)
 }

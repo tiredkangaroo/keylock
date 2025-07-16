@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 
+	"github.com/tiredkangaroo/keylock/config"
 	"github.com/tiredkangaroo/keylock/database"
 	"github.com/tiredkangaroo/keylock/server"
 )
@@ -12,6 +13,9 @@ type Key interface {
 }
 
 func main() {
+	config.Init()
+	database.Init()
+
 	db, err := database.Database()
 	if err != nil {
 		slog.Error("connecting to database failed (fatal)", "error", err)

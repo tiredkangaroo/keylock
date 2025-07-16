@@ -43,17 +43,30 @@ func PerformRequest[X Response, T Request](host string, req T, response X) error
 
 // looks like a disaster of a function but here's what it does:
 // provides a function that takes in a request (type T) and returns a response and an error -> we give u the fiber handler for it
-func Handler[T Request](handler func(T) (Response, error)) func(*fiber.Ctx) error {
+func Handler[T Request, X Response](handler func(T) (X, error)) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		var req T
-		req.SetMethod(c.Method())
-		req.SetPath(c.Path())
-		req.SetQuery(url.Values(shrink(c.QueryParams())))
-		req.SetHeader(shrink(c.GetReqHeaders()))
+		req = req.New().(T)
+
+		if err := req.SetMethod(c.Method()); err != nil {
+			return apiErr(c, http.StatusBadRequest, fmt.Errorf("set method: %w", err))
+		}
+		if err := req.SetPath(c.Path()); err != nil {
+			return apiErr(c, http.StatusBadRequest, fmt.Errorf("set path: %w", err))
+		}
+		if err := req.SetQuery(expand(c.Queries())); err != nil {
+			return apiErr(c, http.StatusBadRequest, fmt.Errorf("set query: %w", err))
+		}
+		if err := req.SetHeader(shrink(c.GetReqHeaders())); err != nil {
+			return apiErr(c, http.StatusBadRequest, fmt.Errorf("set header: %w", err))
+		}
+		if err := req.SetBody(c.Body()); err != nil {
+			return apiErr(c, http.StatusBadRequest, fmt.Errorf("set body: %w", err))
+		}
 
 		resp, err := handler(req)
 		if err != nil {
-			return fmt.Errorf("handler: %w", err)
+			return apiErr(c, http.StatusInternalServerError, fmt.Errorf("handler: %w", err))
 		}
 		return SendResponse(c, resp)
 	}
@@ -70,6 +83,7 @@ func SendResponse[T Response](c *fiber.Ctx, response T) error {
 	if err != nil {
 		return fmt.Errorf("get body: %w", err)
 	}
+	fmt.Println("86", string(body))
 	return c.Status(response.GetStatusCode()).Send(body)
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-const SERVER = "http://localhost:8755"
+const SERVER = "localhost:8755"
 
 var stdinReader = bufio.NewReader(os.Stdin)
 
@@ -28,16 +28,14 @@ func signup() error {
 	}
 	fmt.Println()
 
-	resp := &api.NewAccountResponse{}
-	err = api.PerformRequest(SERVER, &api.NewAccountRequest{
+	resp, err := api.PerformRequest[*api.NewAccountResponse](SERVER, &api.NewAccountRequest{
 		Body: api.NewAccountRequestBody{
 			Name:           username,
 			MasterPassword: mp,
 		},
-	}, resp)
-
+	})
 	if err != nil {
-		return fmt.Errorf("failed to create account: %w", err)
+		return fmt.Errorf("issue with create account: %w", err)
 	}
 
 	fmt.Printf("\nAccount created successfully! Your user ID is %d.\n", resp.Body.UserID)
@@ -100,16 +98,14 @@ func savePassword() error {
 		return fmt.Errorf("failed to get password: %w", err)
 	}
 
-	resp := &api.NewPasswordResponse{}
-	err = api.PerformRequest(SERVER, &api.NewPasswordRequest{
+	_, err = api.PerformRequest[*api.NewPasswordResponse](SERVER, &api.NewPasswordRequest{
 		Body: api.NewPasswordRequestBody{
 			UserID: krdata.UserID,
 			Name:   name,
 			Key2:   key2,
 			Value:  pwd,
 		},
-	}, resp)
-
+	})
 	if err != nil {
 		return fmt.Errorf("failed to save password: %w", err)
 	}
@@ -133,18 +129,17 @@ func retrievePassword() error {
 		return fmt.Errorf("failed to get name: %w", err)
 	}
 
-	resp := &api.RetrievePasswordResponse{}
-	err = api.PerformRequest(SERVER, &api.RetrievePasswordRequest{
+	resp, err := api.PerformRequest[*api.RetrievePasswordResponse](SERVER, &api.RetrievePasswordRequest{
 		Body: api.RetrievePasswordRequestBody{
 			UserID: krdata.UserID,
 			Name:   name,
 			Key2:   key2,
 		},
-	}, resp)
-
+	})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve password: %w", err)
 	}
+
 	fmt.Printf("Password for '%s': %s\n", name, resp.Body.Value)
 	return nil
 }

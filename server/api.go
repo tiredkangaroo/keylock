@@ -53,14 +53,12 @@ func APIRetrievePassword(s *Server) fiber.Handler {
 
 func APIListPasswords(s *Server) fiber.Handler {
 	return api.Handler(func(req *api.ListPasswordsRequest) (*api.ListPasswordsResponse, error) {
-		passwords, err := s.db.ListPasswords(req.User.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list passwords: %w", err)
-		}
+		// passwords, err := s.db.ListPasswords(req.User.ID)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to list passwords: %w", err)
+		// }
 		return &api.ListPasswordsResponse{
-			Body: api.ListPasswordsResponseBody{
-				Passwords: passwords,
-			},
+			Body: api.ListPasswordsResponseBody{},
 		}, nil
 	})
 }

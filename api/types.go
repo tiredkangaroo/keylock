@@ -116,10 +116,7 @@ type NewPasswordRequest struct {
 	Cookies NewPasswordRequestCookies
 	Body    NewPasswordRequestBody
 }
-type NewPasswordRequestCookies struct {
-	Session string `json:"session"`
-}
-
+type NewPasswordRequestCookies = SessionCookies
 type NewPasswordRequestBody struct {
 	Name  string `json:"name"`
 	Key2  string `json:"key2"`
@@ -128,9 +125,9 @@ type NewPasswordRequestBody struct {
 
 func (r *NewPasswordRequest) FromCtx(c *fiber.Ctx) (Request, error) {
 	r = &NewPasswordRequest{}
-	r.Cookies.Session = c.Cookies(r.Cookies.Session, "")
-	if r.Cookies.Session == "" {
-		return nil, fmt.Errorf("no session value") // NOTE: move this into an err var declared at the top
+	err := r.Cookies.Fill(c)
+	if err != nil {
+		return nil, fmt.Errorf("cookie fill: %w", err) // NOTE: move this into an err var declared at the top
 	}
 
 	if err := c.BodyParser(&r.Body); err != nil {
@@ -151,6 +148,7 @@ func (r *NewPasswordRequest) HTTPRequest() (*http.Request, error) {
 		Body:   io.NopCloser(bytes.NewBuffer(body)),
 		Header: http.Header{
 			"Content-Type": []string{"application/json"},
+			"Cookie":       r.Cookies.HeaderValue(),
 		},
 	}, nil
 }
@@ -170,9 +168,10 @@ func (r *NewPasswordResponse) Send(c *fiber.Ctx) error {
 // retrieve password request (/api/passwords/retrieve)
 
 type RetrievePasswordRequest struct {
-	Body RetrievePasswordRequestBody
+	Cookies RetrievePasswordRequestCookies
+	Body    RetrievePasswordRequestBody
 }
-
+type RetrievePasswordRequestCookies = SessionCookies
 type RetrievePasswordRequestBody struct {
 	UserID int64  `json:"user_id"`
 	Name   string `json:"name"`
@@ -181,6 +180,7 @@ type RetrievePasswordRequestBody struct {
 
 func (r *RetrievePasswordRequest) FromCtx(c *fiber.Ctx) (Request, error) {
 	r = &RetrievePasswordRequest{}
+	r.Cookies.Fill(c)
 	if err := c.BodyParser(&r.Body); err != nil {
 		return nil, fmt.Errorf("parse request body: %w", err)
 	}
@@ -199,6 +199,7 @@ func (r *RetrievePasswordRequest) HTTPRequest() (*http.Request, error) {
 		Body:   io.NopCloser(bytes.NewBuffer(body)),
 		Header: http.Header{
 			"Content-Type": []string{"application/json"},
+			"Cookie":       r.Cookies.HeaderValue(),
 		},
 	}, nil
 }
@@ -226,26 +227,27 @@ func (r *RetrievePasswordResponse) Send(c *fiber.Ctx) error {
 // list passwords request (/api/passwords/list)
 
 type ListPasswordsRequest struct {
-	Header struct {
-		Authorization string
-	}
+	Cookies ListPasswordsRequestCookies
 }
+type ListPasswordsRequestCookies = SessionCookies
 
 func (r *ListPasswordsRequest) FromCtx(c *fiber.Ctx) (Request, error) {
 	r = &ListPasswordsRequest{}
-	r.Header.Authorization = c.Get("Authorization")
-	if r.Header.Authorization == "" {
-		return nil, fmt.Errorf("missing Authorization header")
+	if err := r.Cookies.Fill(c); err != nil {
+		return nil, fmt.Errorf("cookie fill: %w", err)
 	}
 	return r, nil
 }
 
 func (r *ListPasswordsRequest) HTTPRequest() (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, "/api/passwords/list", nil)
-	if err != nil {
-		return nil, err
+	req := &http.Request{
+		Method: http.MethodGet,
+		URL:    &url.URL{Scheme: scheme, Path: "/api/passwords/list"},
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+			"Cookie":       r.Cookies.HeaderValue(),
+		},
 	}
-	req.Header.Set("Authorization", r.Header.Authorization)
 	return req, nil
 }
 
@@ -267,4 +269,19 @@ func (r *ListPasswordsResponse) Send(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8)
 	c.Status(http.StatusOK)
 	return c.JSON(r.Body)
+}
+
+type SessionCookies struct {
+	Session string `json:"session"`
+}
+
+func (c *SessionCookies) Fill(ctx *fiber.Ctx) error {
+	c.Session = ctx.Cookies("session", "")
+	if c.Session == "" {
+		return fmt.Errorf("missing session cookie")
+	}
+	return nil
+}
+func (c *SessionCookies) HeaderValue() []string {
+	return []string{fmt.Sprintf("session=%s", c.Session)}
 }

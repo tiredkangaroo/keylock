@@ -15,6 +15,7 @@ const (
 	CommandMe
 	CommandSavePassword
 	CommandRetrievePassword
+	CommandListPasswords
 )
 
 var cmd Command
@@ -38,35 +39,42 @@ func init() {
 		cmd = CommandSavePassword
 	case "get-password":
 		cmd = CommandRetrievePassword
+	case "list-passwords":
+		cmd = CommandListPasswords
 	default:
 		cmd = CommandUnknown
 	}
 }
 
 type KeyringData struct {
-	UserID      int64  `json:"user_id"`
-	SessionCode string `json:"session_code"`
+	UserID       int64  `json:"user_id"`
+	SessionToken string `json:"session_token"`
+	SessionCode  string `json:"session_code"`
 }
 
 func main() {
 	switch cmd {
 	case CommandSignup:
 		if err := signup(); err != nil {
-			println("Error:", err.Error())
+			println("\nError:", err.Error())
 		}
 	case CommandMe:
 		if err := me(); err != nil {
-			println("Error:", err.Error())
+			println("\nError:", err.Error())
 		}
 	case CommandSavePassword:
 		if err := savePassword(); err != nil {
-			println("Error:", err.Error())
+			println("\nError:", err.Error())
 		}
 	case CommandRetrievePassword:
 		if err := retrievePassword(); err != nil {
-			println("Error:", err.Error())
+			println("\nError:", err.Error())
+		}
+	case CommandListPasswords:
+		if err := listPasswords(); err != nil {
+			println("\nError: ", err.Error())
 		}
 	default:
-		println("Unknown command. Available commands: signup, me, set-password, get-password")
+		println("Unknown command. Available commands: signup, me, set-password, get-password, list-passwords")
 	}
 }

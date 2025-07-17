@@ -38,8 +38,10 @@ func APINewPassword(s *Server) fiber.Handler {
 	return api.Handler(func(c *fiber.Ctx, req *api.NewPasswordRequest) (*api.NewPasswordResponse, error) {
 		user := getUser(c)
 
+		fmt.Println(user)
 		err := s.db.SavePassword(user.ID, req.Body.Name, req.Body.Key2, req.Body.Value)
 		if err != nil {
+			fmt.Println(err.Error())
 			return nil, err
 		}
 		slog.Info("saved password", "name", req.Body.Name, "user_id", user.ID)

@@ -3,13 +3,11 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/tiredkangaroo/keylock/api"
-	"github.com/zalando/go-keyring"
 )
 
 const SERVER = "localhost:8755"
@@ -39,11 +37,12 @@ func signup() error {
 
 	fmt.Printf("\nAccount created successfully! Your user ID is %d.\n", resp.Body.UserID)
 
-	krdata, _ := json.Marshal(KeyringData{
-		UserID:      resp.Body.UserID,
-		SessionCode: resp.Body.SessionCode,
-	})
-	err = keyring.Set(service, currentUser.Username, string(krdata))
+	krdata := KeyringData{
+		UserID:       resp.Body.UserID,
+		SessionToken: resp.Cookies.Session,
+		SessionCode:  resp.Body.SessionCode,
+	}
+	err = setKeyringData(krdata)
 	if err != nil {
 		return fmt.Errorf("failed to save session code to keyring: %w", err)
 	}
@@ -55,15 +54,11 @@ func signup() error {
 
 func me() error {
 	fmt.Printf("Hello, %s.\n", currentUser.Username)
-	keyringData, err := keyring.Get(service, currentUser.Username)
+	krdata, err := getKeyringData()
 	if err != nil {
-		return fmt.Errorf("failed to retrieve keyring data: %w", err)
+		return fmt.Errorf("failed to get keyring data (hint: make sure you're signed in): %w", err)
 	}
-	var data KeyringData
-	if err := json.Unmarshal([]byte(keyringData), &data); err != nil {
-		return fmt.Errorf("failed to unmarshal keyring data: %w", err)
-	}
-	fmt.Printf("Your user ID is %d.\n", data.UserID)
+	fmt.Printf("Your user ID is %d.\n", krdata.UserID)
 	return nil
 }
 
@@ -71,6 +66,9 @@ func savePassword() error {
 	krdata, err := getKeyringData()
 	if err != nil {
 		return fmt.Errorf("failed to get keyring data (hint: make sure you're signed in): %w", err)
+	}
+	if krdata.SessionCode == "" {
+		return fmt.Errorf("session code is empty, please sign up or log in again")
 	}
 	code, err := promptRequiredText("5-digit code: ")
 	if err != nil {
@@ -97,6 +95,9 @@ func savePassword() error {
 	}
 
 	_, err = api.PerformRequest[*api.NewPasswordResponse](SERVER, &api.NewPasswordRequest{
+		Cookies: api.NewPasswordRequestCookies{
+			Session: krdata.SessionToken,
+		},
 		Body: api.NewPasswordRequestBody{
 			Name:  name,
 			Key2:  key2,
@@ -116,6 +117,9 @@ func retrievePassword() error {
 	if err != nil {
 		return fmt.Errorf("failed to get keyring data (hint: make sure you're signed in): %w", err)
 	}
+	if krdata.SessionCode == "" {
+		return fmt.Errorf("session code is empty, please sign up or log in again")
+	}
 	key2, err := getKey2(krdata)
 	if err != nil {
 		return fmt.Errorf("failed to get key2: %w", err)
@@ -127,6 +131,9 @@ func retrievePassword() error {
 	}
 
 	resp, err := api.PerformRequest[*api.RetrievePasswordResponse](SERVER, &api.RetrievePasswordRequest{
+		Cookies: api.RetrievePasswordRequestCookies{
+			Session: krdata.SessionToken,
+		},
 		Body: api.RetrievePasswordRequestBody{
 			UserID: krdata.UserID,
 			Name:   name,
@@ -138,5 +145,29 @@ func retrievePassword() error {
 	}
 
 	fmt.Printf("Password for '%s': %s\n", name, resp.Body.Value)
+	return nil
+}
+
+func listPasswords() error {
+	krdata, err := getKeyringData()
+	if err != nil {
+		return fmt.Errorf("failed to get keyring data (hint: make sure you're signed in): %w", err)
+	}
+	if krdata.SessionToken == "" {
+		return fmt.Errorf("session code is empty, please sign up or log in again")
+	}
+
+	resp, err := api.PerformRequest[*api.ListPasswordsResponse](SERVER, &api.ListPasswordsRequest{
+		Cookies: api.ListPasswordsRequestCookies{
+			Session: krdata.SessionToken,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list passwords: %w", err)
+	}
+	fmt.Println("Your passwords:")
+	for _, pwd := range resp.Body.Passwords {
+		fmt.Printf("- %s (id: %d, created on: %s)\n", pwd.Name, pwd.ID, formatTime(pwd.CreatedAt))
+	}
 	return nil
 }

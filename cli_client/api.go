@@ -26,7 +26,6 @@ func signup() error {
 	if err != nil {
 		return fmt.Errorf("failed to get password: %w", err)
 	}
-	fmt.Println()
 
 	resp, err := api.PerformRequest[*api.NewAccountResponse](SERVER, &api.NewAccountRequest{
 		Body: api.NewAccountRequestBody{
@@ -65,7 +64,6 @@ func me() error {
 		return fmt.Errorf("failed to unmarshal keyring data: %w", err)
 	}
 	fmt.Printf("Your user ID is %d.\n", data.UserID)
-	println("Signup successful!")
 	return nil
 }
 
@@ -100,10 +98,9 @@ func savePassword() error {
 
 	_, err = api.PerformRequest[*api.NewPasswordResponse](SERVER, &api.NewPasswordRequest{
 		Body: api.NewPasswordRequestBody{
-			UserID: krdata.UserID,
-			Name:   name,
-			Key2:   key2,
-			Value:  pwd,
+			Name:  name,
+			Key2:  key2,
+			Value: pwd,
 		},
 	})
 	if err != nil {

@@ -67,7 +67,11 @@ func (r *NewAccountRequest) HTTPRequest() (*http.Request, error) {
 // new account response (/api/accounts/new)
 
 type NewAccountResponse struct {
-	Body NewAccountResponseBody
+	Cookies NewAccountResponseCookies
+	Body    NewAccountResponseBody
+}
+type NewAccountResponseCookies struct {
+	Session string `json:"session"` // json tag dont matter here
 }
 type NewAccountResponseBody struct {
 	UserID      int64  `json:"user_id"`
@@ -78,27 +82,57 @@ type NewAccountResponseBody struct {
 func (r *NewAccountResponse) FromResp(resp *http.Response) (Response, error) {
 	r = new(NewAccountResponse)
 	err := decodeResponseBody(resp, &r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("decode response body: %w", err)
+	}
+	cookies := resp.Cookies()
+	for _, cookie := range cookies {
+		switch cookie.Name {
+		case "session":
+			r.Cookies.Session = cookie.Value
+		default:
+			return nil, fmt.Errorf("unexpected cookie: %s", cookie.Name)
+		}
+	}
+	if r.Cookies.Session == "" {
+		return nil, fmt.Errorf("missing session cookie")
+	}
 	return r, err
 }
 func (r *NewAccountResponse) Send(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8) // wow look how specific my mime type is
+	c.Cookie(&fiber.Cookie{
+		Name:     "session",
+		Value:    r.Cookies.Session,
+		HTTPOnly: true,
+		Secure:   true,
+	})
 	c.Status(http.StatusOK)
 	return c.JSON(r.Body)
 }
 
+// new password request (/api/passwords/new)
 type NewPasswordRequest struct {
-	Body NewPasswordRequestBody
+	Cookies NewPasswordRequestCookies
+	Body    NewPasswordRequestBody
+}
+type NewPasswordRequestCookies struct {
+	Session string `json:"session"`
 }
 
 type NewPasswordRequestBody struct {
-	UserID int64  `json:"user_id"`
-	Name   string `json:"name"`
-	Key2   string `json:"key2"`
-	Value  string `json:"value"`
+	Name  string `json:"name"`
+	Key2  string `json:"key2"`
+	Value string `json:"value"`
 }
 
 func (r *NewPasswordRequest) FromCtx(c *fiber.Ctx) (Request, error) {
 	r = &NewPasswordRequest{}
+	r.Cookies.Session = c.Cookies(r.Cookies.Session, "")
+	if r.Cookies.Session == "" {
+		return nil, fmt.Errorf("no session value") // NOTE: move this into an err var declared at the top
+	}
+
 	if err := c.BodyParser(&r.Body); err != nil {
 		return nil, fmt.Errorf("parse request body: %w", err)
 	}
@@ -133,7 +167,7 @@ func (r *NewPasswordResponse) Send(c *fiber.Ctx) error {
 	return nil
 }
 
-// --- RetrievePassword ---
+// retrieve password request (/api/passwords/retrieve)
 
 type RetrievePasswordRequest struct {
 	Body RetrievePasswordRequestBody
@@ -189,7 +223,7 @@ func (r *RetrievePasswordResponse) Send(c *fiber.Ctx) error {
 	return c.JSON(r.Body)
 }
 
-// --- ListPasswords ---
+// list passwords request (/api/passwords/list)
 
 type ListPasswordsRequest struct {
 	Header struct {

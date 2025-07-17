@@ -136,6 +136,19 @@ func Database() (*DB, error) {
 	return db, nil
 }
 
+func (db *DB) GetUserByID(id int64) (*User, error) {
+	stmt := `SELECT id, name, created_at FROM users WHERE id = ?`
+	var user User
+	err := db.sql.QueryRow(stmt, id).Scan(&user.ID, &user.Name, &user.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("user with id %d not found", id)
+		}
+		return nil, fmt.Errorf("querying user: %w", err)
+	}
+	return &user, nil
+}
+
 // SaveUser saves a user to the database (oh great explanation, i know).
 // Expected fields:
 // - Name

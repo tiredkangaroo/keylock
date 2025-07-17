@@ -28,14 +28,14 @@ func PerformRequest[X Response, T Request](host string, req T) (X, error) {
 
 // looks like a disaster of a function but here's what it does:
 // provides a function that takes in a request (type T) and returns a response and an error -> we give u the fiber handler for it
-func Handler[T Request, X Response](handler func(T) (X, error)) func(*fiber.Ctx) error {
+func Handler[T Request, X Response](handler func(*fiber.Ctx, T) (X, error)) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		var zerov T
 		req, err := zerov.FromCtx(c)
 		if err != nil {
 			return apiErr(c, http.StatusBadRequest, fmt.Errorf("parse request: %w", err))
 		}
-		resp, err := handler(req.(T))
+		resp, err := handler(c, req.(T))
 		if err != nil {
 			return apiErr(c, http.StatusInternalServerError, fmt.Errorf("handler: %w", err))
 		}

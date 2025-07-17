@@ -1,59 +1,32 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
-	"log/slog"
+	"strconv"
+	"time"
 
-	"github.com/goccy/go-reflect"
 	"github.com/gofiber/fiber/v2"
+	"github.com/tiredkangaroo/keylock/cache"
+	"github.com/tiredkangaroo/keylock/database"
 )
 
-// NOTE: make the json parser strict, NO extra fields and NO missing fields
-func parseJSONBody[T any](c *fiber.Ctx) (T, error) {
-	var data T
+var sessionExpiration time.Duration = time.Hour * 24 * 7
 
-	// possibly use bytebufferpool for mem
-	decoder := json.NewDecoder(bytes.NewBuffer(c.Body()))
-	decoder.DisallowUnknownFields()
-	defer c.Request().CloseBodyStream()
-	if err := decoder.Decode(&data); err != nil {
-		return data, fmt.Errorf("json error: %w", err)
+func newSessionForUser(userID int64) (string, error) {
+	sessionIDRaw := make([]byte, 20)
+	rand.Read(sessionIDRaw)
+	sessionID := hex.EncodeToString(sessionIDRaw)
+
+	err := cache.HSetWithExpiration("user-session", sessionID, strconv.Itoa(int(userID)), sessionExpiration)
+	if err != nil {
+		return "", fmt.Errorf("redis save error: %w", err)
 	}
 
-	v := reflect.ValueOf(data)
-	t := v.Type()
-	if t.Kind() != reflect.Struct { // validation not performed here
-		return data, nil
-	}
-
-	// basic validation for required fields (or fields not tagged with `required:"false"`)
-	// this can't catch boolean or number fields that aren't provided, since their zero values are considered valid
-	for i := range t.NumField() {
-		structField := t.Field(i)
-		fieldValue := v.Field(i)
-		if structField.Tag.Get("required") == "false" {
-			continue
-		}
-
-		switch structField.Type.Kind() {
-		case reflect.String:
-			if fieldValue.String() == "" {
-				return data, fmt.Errorf("field %s not provided (empty)", structField.Name)
-			}
-		case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface:
-			if fieldValue.IsNil() {
-				return data, fmt.Errorf("field %s not provided (null/nil)", structField.Name)
-			}
-		}
-	}
-	return data, nil
+	return sessionID, nil
 }
 
-func APIError(c *fiber.Ctx, status int, real error, display string) error {
-	slog.Error(display, "error", real)
-	return c.Status(status).JSON(fiber.Map{
-		"error": display,
-	})
+func getUser(c *fiber.Ctx) *database.User {
+	return c.Locals("user").(*database.User)
 }

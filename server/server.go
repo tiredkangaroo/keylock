@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/tiredkangaroo/keylock/config"
 	"github.com/tiredkangaroo/keylock/database"
+	"github.com/tiredkangaroo/keylock/server/middlewares"
 )
 
 // NOTE: maybe retrive should be a GET
@@ -31,11 +32,13 @@ func (s *Server) Start() error {
 		EnablePrintRoutes: true,
 	})
 
+	sessionMiddleware := middlewares.SessionMiddleware(s.db)
+
 	api := app.Group("/api")
 	api.Post("/accounts/new", APINewAccount(s))
-	api.Post("/passwords/new", APINewPassword(s))
-	api.Post("/passwords/retrieve", APIRetrievePassword(s))
-	api.Post("/passwords/list", APIListPasswords(s))
+	api.Post("/passwords/new", sessionMiddleware, APINewPassword(s))
+	api.Post("/passwords/retrieve", sessionMiddleware, APIRetrievePassword(s))
+	api.Post("/passwords/list", sessionMiddleware, APIListPasswords(s))
 
 	return app.Listener(listener)
 }

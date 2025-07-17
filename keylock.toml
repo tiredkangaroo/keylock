@@ -2,7 +2,9 @@ addr = ":8755"
 debug = true
 
 [redis]
-hostport = ""
+network = "tcp"
+hostport = "127.0.0.1:6379"
+username = ""
 password = ""
 db = 0
 timeout = 30

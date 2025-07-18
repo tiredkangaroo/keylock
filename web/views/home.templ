@@ -4,6 +4,10 @@ import "github.com/tiredkangaroo/keylock/web/layouts"
 
 templ Home(name string) {
 	@layouts.BaseLayout() {
-		<div>Hello, { name }</div>
+		<div class="w-full h-full justify-center align-center">
+			<div class="bg-blue-400">
+				good morning, { name }!
+			</div>
+		</div>
 	}
 }

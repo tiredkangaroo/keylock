@@ -1,0 +1,28 @@
+package layouts
+
+import "github.com/tiredkangaroo/keylock/web/components/modal"
+
+templ BaseLayout() {
+	<!DOCTYPE html>
+	<html lang="en" class="h-full dark">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<!-- Tailwind CSS (output) -->
+			<link href="/assets/css/output.css" rel="stylesheet"/>
+			<link
+				rel="icon"
+				href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>"
+			/>
+			<title>keylock web</title>
+		</head>
+		<body class="h-full">
+			<div class="h-full flex flex-col">
+				<main class="flex-1">
+					@modal.Script()
+					{ children... }
+				</main>
+			</div>
+		</body>
+	</html>
+}

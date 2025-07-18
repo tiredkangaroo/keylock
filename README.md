@@ -8,5 +8,3 @@ see [DEPLOYMENT.md](DEPLOYMENT.md) for deployment instructions
 - password strength checking
 - other clients besides cli (web, mobile, etc)
 - move database types outside of database package
-
-note make command for setup

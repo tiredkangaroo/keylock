@@ -1,0 +1,9 @@
+package views
+
+import "github.com/tiredkangaroo/keylock/web/layouts"
+
+templ Home(name string) {
+	@layouts.BaseLayout() {
+		<div>Hello, { name }</div>
+	}
+}

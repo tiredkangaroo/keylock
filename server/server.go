@@ -9,6 +9,7 @@ import (
 	"github.com/tiredkangaroo/keylock/config"
 	"github.com/tiredkangaroo/keylock/database"
 	"github.com/tiredkangaroo/keylock/server/middlewares"
+	"github.com/tiredkangaroo/keylock/web"
 )
 
 // NOTE: maybe retrive should be a GET
@@ -33,6 +34,9 @@ func (s *Server) Start() error {
 	})
 
 	sessionMiddleware := middlewares.SessionMiddleware(s.db)
+
+	webGroup := app.Group("")
+	web.SetGroup(webGroup)
 
 	api := app.Group("/api")
 	api.Post("/accounts/new", APINewAccount(s))

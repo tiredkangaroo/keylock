@@ -60,7 +60,7 @@ services:
         volumes:
             - ./scripts/vault-init.sh:/init/vault-init.sh:ro
         env_file:
-            - .env.compose.vault-init
+            - .env.vault-init
         environment:
             VAULT_ADDR: http://vault:8200
             VAULT_TOKEN: root

@@ -78,17 +78,17 @@ func mustGetSecretField[T any](path, key, subkey string) T {
 }
 
 func GetRedisUsername() string {
-	return mustGetSecretField[string](config.DefaultConfig.Vault.Path, "redis", "username")
+	return mustGetSecretField[string]("keylock", "redis", "username")
 }
 func GetRedisPassword() string {
-	return mustGetSecretField[string](config.DefaultConfig.Vault.Path, "redis", "password")
+	return mustGetSecretField[string]("keylock", "redis", "password")
 }
 func GetPostgresUsername() string {
-	return mustGetSecretField[string](config.DefaultConfig.Vault.Path, "psql", "username")
+	return mustGetSecretField[string]("keylock", "psql", "username")
 }
 func GetPostgresPassword() string {
-	return mustGetSecretField[string](config.DefaultConfig.Vault.Path, "psql", "password")
+	return mustGetSecretField[string]("keylock", "psql", "password")
 }
 func GetEncryptionKey() string {
-	return mustGetSecretField[string](config.DefaultConfig.Vault.Path, "encryption", "key")
+	return mustGetSecretField[string]("keylock", "encryption", "key")
 }

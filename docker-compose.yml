@@ -1,0 +1,70 @@
+services:
+    keylock:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: keylock
+        depends_on:
+            - redis
+            - postgres
+            - vault
+            - vault-init
+        volumes:
+            - ./keylock.toml:/keylock.toml:ro
+        ports:
+            - "8755:8755"
+        command: ["/keylock"]
+        environment:
+            - VAULT_ADDR=http://vault:8200
+        restart: unless-stopped
+
+    redis:
+        image: redis:8
+        container_name: redis
+        ports:
+            - "6379:6379"
+        restart: unless-stopped
+
+    postgres:
+        image: postgres:14.15
+        container_name: postgres
+        environment:
+            POSTGRES_DB: keylock
+            POSTGRES_USER: keylock_user
+            POSTGRES_PASSWORD: keylock_pass
+        ports:
+            - "5432:5432"
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        restart: unless-stopped
+
+    vault:
+        image: hashicorp/vault:1.20.0
+        container_name: vault
+        ports:
+            - "8200:8200"
+        cap_add:
+            - IPC_LOCK
+        environment:
+            VAULT_DEV_ROOT_TOKEN_ID: root
+            VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+        volumes:
+            - vault_data:/vault/data
+        restart: unless-stopped
+
+    vault-init:
+        image: hashicorp/vault:1.20.0
+        depends_on:
+            - vault
+        entrypoint: ["/bin/sh", "-c", "/init/vault-init.sh"]
+        volumes:
+            - ./scripts/vault-init.sh:/init/vault-init.sh:ro
+        env_file:
+            - .env.compose.vault-init
+        environment:
+            VAULT_ADDR: http://vault:8200
+            VAULT_TOKEN: root
+
+volumes:
+    pgdata:
+    vault_data:

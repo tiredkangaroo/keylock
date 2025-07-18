@@ -40,7 +40,6 @@ type Config struct {
 		RetryWaitMin int64  `toml:"retry_wait_min"` // in ms
 		RetryMax     int    `toml:"retry_max"`      // max num retries
 		Token        string `toml:"token"`          // vault token
-		Path         string `toml:"path"`           // the path: usually "keylock"
 	} `toml:"vault"`
 
 	dirname string // lowercase to avoid toml, is working directory ("./.keylock") or "/home/.keylock" or similar

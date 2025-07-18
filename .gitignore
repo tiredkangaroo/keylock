@@ -1,2 +1,3 @@
 *.db
 keylock.toml
+.env.compose.vault-init

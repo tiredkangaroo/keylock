@@ -23,11 +23,25 @@ type Config struct {
 	Redis struct {
 		Network  string `toml:"network"`
 		Hostport string `toml:"hostport"`
-		Username string `toml:"username"`
-		Password string `toml:"password"`
 		DB       int    `toml:"db"`
 		Timeout  int64  `toml:"timeout"` // in seconds
 	} `toml:"redis"`
+
+	Postgres struct {
+		Host     string `toml:"host"`
+		Port     int    `toml:"port"`
+		SSL      bool   `toml:"ssl"`
+		Database string `toml:"database"`
+	} `toml:"postgres"`
+
+	Vault struct {
+		Address      string `toml:"address"`
+		Timeout      int64  `toml:"timeout"`        // in seconds
+		RetryWaitMin int64  `toml:"retry_wait_min"` // in ms
+		RetryMax     int    `toml:"retry_max"`      // max num retries
+		Token        string `toml:"token"`          // vault token
+		Path         string `toml:"path"`           // the path: usually "keylock"
+	} `toml:"vault"`
 
 	dirname string // lowercase to avoid toml, is working directory ("./.keylock") or "/home/.keylock" or similar
 }

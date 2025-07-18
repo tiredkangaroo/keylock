@@ -7,6 +7,7 @@ import (
 	"github.com/tiredkangaroo/keylock/config"
 	"github.com/tiredkangaroo/keylock/database"
 	"github.com/tiredkangaroo/keylock/server"
+	"github.com/tiredkangaroo/keylock/vault"
 )
 
 type Key interface {
@@ -15,8 +16,9 @@ type Key interface {
 
 func main() {
 	config.Init()
-	database.Init()
-	cache.Init()
+	vault.Init()    // relies on config
+	cache.Init()    // relies on vault and config
+	database.Init() // relies on config
 
 	db, err := database.Database()
 	if err != nil {

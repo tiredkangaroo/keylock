@@ -10,10 +10,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"os"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
+	"github.com/tiredkangaroo/keylock/config"
 	"github.com/tiredkangaroo/keylock/utils"
+	"github.com/tiredkangaroo/keylock/vault"
 )
 
 // BIG NOTE: code should be the same for every password for a user! we do not want to store the code in the db.
@@ -28,13 +29,7 @@ import (
 var enc_key = make([]byte, 32) // 32 bytes for aes-256-gcm
 
 func Init() {
-	enc_key_str := os.Getenv("ENCRYPTION_KEY")
-	if enc_key_str == "" {
-		panic("ENCRYPTION_KEY environment variable is not set")
-	}
-	if len(enc_key_str) != 64 {
-		panic(fmt.Errorf("ENCRYPTION_KEY must be 64 characters long (32 bytes encoded), got %d characters", len(enc_key_str)))
-	}
+	enc_key_str := vault.GetEncryptionKey()
 	if _, err := hex.Decode(enc_key, []byte(enc_key_str)); err != nil {
 		panic(fmt.Errorf("decoding ENCRYPTION_KEY: %w", err))
 	}
@@ -86,29 +81,41 @@ type Password struct {
 
 func Database() (*DB, error) {
 	db := &DB{}
-	sql, err := sql.Open("sqlite3", utils.ConfigFile("keylock.db"))
+
+	sslmode := "disable"
+	if config.DefaultConfig.Postgres.SSL {
+		sslmode = "require"
+	}
+	sql, err := sql.Open("postgres", fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		vault.GetPostgresUsername(),
+		vault.GetPostgresPassword(),
+		config.DefaultConfig.Postgres.Host,
+		config.DefaultConfig.Postgres.Port,
+		config.DefaultConfig.Postgres.Database,
+		sslmode,
+	))
 	if err != nil {
 		return nil, err
 	}
 	db.sql = sql
 
 	userTableCreate := `CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id BIGSERIAL PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
-		key1 BLOB NOT NULL,
-		key1_nonce BLOB NOT NULL,
-		key2_salt BLOB NOT NULL,
-		key2_verifier BLOB NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		key1 BYTEA NOT NULL,
+		key1_nonce BYTEA NOT NULL,
+		key2_salt BYTEA NOT NULL,
+		key2_verifier BYTEA NOT NULL,
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP
 	)`
 	passwordTableCreate := `CREATE TABLE IF NOT EXISTS passwords (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id BIGSERIAL PRIMARY KEY,
 		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		name TEXT NOT NULL,
-		value BLOB NOT NULL,
-		value_layer1_nonce BLOB NOT NULL,
-		value_layer2_nonce BLOB NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		value BYTEA NOT NULL,
+		value_layer1_nonce BYTEA NOT NULL,
+		value_layer2_nonce BYTEA NOT NULL,
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(user_id, name)
 	)`
 	_, err = db.sql.Exec(userTableCreate)
@@ -137,7 +144,7 @@ func Database() (*DB, error) {
 }
 
 func (db *DB) GetUserByID(id int64) (*User, error) {
-	stmt := `SELECT id, name, created_at FROM users WHERE id = ?`
+	stmt := `SELECT id, name, created_at FROM users WHERE id = $1;`
 	var user User
 	err := db.sql.QueryRow(stmt, id).Scan(&user.ID, &user.Name, &user.CreatedAt)
 	if err != nil {
@@ -186,16 +193,10 @@ func (db *DB) SaveUser(name, masterPassword string) (id int64, sessionCode strin
 	}
 
 	// id and created_at are defaulted by the database, so we don't need to set them
-	stmt := `INSERT INTO users (name, key1, key1_nonce, key2_salt, key2_verifier) VALUES (?, ?, ?, ?, ?)`
-	result, err := db.sql.Exec(stmt, name, key_1, key1_nonce, key2_salt, key2_verifier)
+	stmt := `INSERT INTO users (name, key1, key1_nonce, key2_salt, key2_verifier) VALUES ($1, $2, $3, $4, $5) RETURNING id;`
+	err = db.sql.QueryRow(stmt, name, key_1, key1_nonce, key2_salt, key2_verifier).Scan(&id)
 	if err != nil {
 		err = fmt.Errorf("inserting user: %w", err)
-		return
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		err = fmt.Errorf("getting last insert id: %w", err)
 		return
 	}
 
@@ -216,7 +217,7 @@ func (db *DB) SavePassword(userid int64, name, key2, value string) error {
 		return fmt.Errorf("decoding key2 with hex: %w", err)
 	}
 
-	stmt := `SELECT key1, key1_nonce, key2_verifier FROM users WHERE id = ?` // step 1: get the user to retrieve key1
+	stmt := `SELECT key1, key1_nonce, key2_verifier FROM users WHERE id = $1;` // step 1: get the user to retrieve key1
 	var key1_raw, key1_nonce, key2_verifier []byte
 	err = db.sql.QueryRow(stmt, userid).Scan(&key1_raw, &key1_nonce, &key2_verifier)
 	if err != nil {
@@ -258,7 +259,7 @@ func (db *DB) SavePassword(userid int64, name, key2, value string) error {
 	}
 
 	// step 7: insert the password into the database
-	stmt = `INSERT INTO passwords (user_id, name, value, value_layer1_nonce, value_layer2_nonce) VALUES (?, ?, ?, ?, ?)`
+	stmt = `INSERT INTO passwords (user_id, name, value, value_layer1_nonce, value_layer2_nonce) VALUES ($1, $2, $3, $4, $5);`
 	_, err = db.sql.Exec(stmt, userid, name, layer2, layer1_nonce, layer2_nonce)
 	if err != nil {
 		return fmt.Errorf("inserting password: %w", err)
@@ -288,7 +289,7 @@ func (db *DB) RetrievePassword(userid int64, name, key2 string) (pwd []byte, err
 	}
 
 	// step 1: get password and extract value, value_layer1_nonce, value_layer2_nonce
-	stmt := `SELECT value, value_layer1_nonce, value_layer2_nonce FROM passwords WHERE user_id = ? AND name = ?`
+	stmt := `SELECT value, value_layer1_nonce, value_layer2_nonce FROM passwords WHERE user_id = $1 AND name = $2;`
 	var value, value_layer1_nonce, value_layer2_nonce []byte
 	err = db.sql.QueryRow(stmt, userid, name).Scan(&value, &value_layer1_nonce, &value_layer2_nonce)
 	if err != nil {
@@ -301,7 +302,7 @@ func (db *DB) RetrievePassword(userid int64, name, key2 string) (pwd []byte, err
 	}
 
 	// step 2: get the user to retrieve key1 and key1_nonce
-	stmt = `SELECT key1, key1_nonce FROM users WHERE id = ?`
+	stmt = `SELECT key1, key1_nonce FROM users WHERE id = $1;`
 	var key1_raw, key1_nonce []byte
 	err = db.sql.QueryRow(stmt, userid).Scan(&key1_raw, &key1_nonce)
 	if err != nil {
@@ -336,7 +337,7 @@ func (db *DB) RetrievePassword(userid int64, name, key2 string) (pwd []byte, err
 }
 
 func (db *DB) ListPasswords(userID int64) ([]Password, error) {
-	stmt := `SELECT id, name, created_at FROM passwords WHERE user_id = ?`
+	stmt := `SELECT id, name, created_at FROM passwords WHERE user_id = $1;`
 	rows, err := db.sql.Query(stmt, userID)
 	if err != nil {
 		return nil, fmt.Errorf("querying passwords: %w", err)

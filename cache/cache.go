@@ -7,6 +7,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/tiredkangaroo/keylock/config"
+	"github.com/tiredkangaroo/keylock/vault"
 )
 
 var redisClient *redis.Client
@@ -20,8 +21,8 @@ func Init() {
 	redisClient = redis.NewClient(&redis.Options{
 		Network:      config.DefaultConfig.Redis.Network,
 		Addr:         config.DefaultConfig.Redis.Hostport,
-		Username:     config.DefaultConfig.Redis.Username,
-		Password:     config.DefaultConfig.Redis.Password,
+		Username:     vault.GetRedisUsername(),
+		Password:     vault.GetRedisPassword(),
 		DB:           config.DefaultConfig.Redis.DB,
 		ReadTimeout:  time.Duration(config.DefaultConfig.Redis.Timeout) * time.Second,
 		WriteTimeout: time.Duration(config.DefaultConfig.Redis.Timeout) * time.Second,

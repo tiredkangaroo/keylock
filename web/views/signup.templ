@@ -1,0 +1,155 @@
+package views
+
+import (
+	"github.com/tiredkangaroo/keylock/web/components/button"
+	"github.com/tiredkangaroo/keylock/web/components/form"
+	"github.com/tiredkangaroo/keylock/web/components/input"
+	"github.com/tiredkangaroo/keylock/web/components/modal"
+	"github.com/tiredkangaroo/keylock/web/layouts"
+)
+
+templ Signup() {
+	@layouts.BaseLayout() {
+		<div class="w-full h-full flex flex-col justify-center items-center">
+			@modal.Trigger(modal.TriggerProps{
+				ID:  "code-modal-trigger",
+				For: "code-modal",
+			}) {
+			}
+			@modal.Modal(modal.Props{
+				ID:    "code-modal",
+				Class: "bg-blue-200 max-w-md z-1000",
+			}) {
+				@modal.Header() {
+					Use this code
+				}
+				@modal.Body() {
+					<p id="code-modal-code"></p>
+				}
+				@modal.Footer(modal.FooterProps{
+					Class: "w-full",
+				}) {
+					<div class="flex gap-2">
+						@modal.Close(modal.CloseProps{
+							For: "default-modal",
+						}) {
+							@button.Button(button.Props{
+								Variant: button.VariantDefault,
+								Class:   "w-full py-2 bg-blue-800 text-white",
+							}) {
+								Close
+							}
+						}
+					</div>
+				}
+			}
+			<div class="text-4xl mb-4">
+				Sign Up 🔐
+			</div>
+			<div class="w-[38%] min-w-fit grid gap-2">
+				@form.Message(form.MessageProps{
+					ID:    "signup-message",
+					Class: "py-3 px-2 bg-red-100 border-1 rounded-md border-red-700 hidden wrap-break-word w-full",
+					Attributes: templ.Attributes{
+						"role": "alert",
+					},
+				})
+				<div class="w-full grid gap-4">
+					<div class="w-full">
+						@form.Label(form.LabelProps{
+							For: "name",
+						}) {
+							Username
+						}
+						@input.Input(input.Props{
+							ID:    "name",
+							Class: "p-1 pl-2 mb-1 w-full",
+							Attributes: templ.Attributes{
+								"autofocus": "true",
+							},
+							Type:        input.TypeText,
+							Placeholder: "Enter a username",
+						})
+						@form.Description() {
+							Choose a unique username for your account.
+						}
+					</div>
+					<div class="w-full">
+						@form.Label(form.LabelProps{
+							For:   "master_password",
+							Class: "mt-8",
+						}) {
+							Master Password
+						}
+						<div classname="flex flex-row">
+							@input.Input(input.Props{
+								ID:               "master_password",
+								Class:            "p-1 pl-2 mb-1 w-full",
+								Type:             input.TypePassword,
+								Placeholder:      "Enter a master password",
+								NoTogglePassword: true,
+							})
+						</div>
+						@form.Description() {
+							Choose a strong master password to secure your lock.
+						}
+					</div>
+					@button.Button(button.Props{
+						Size:    button.SizeLg,
+						Variant: button.VariantDefault,
+						Attributes: templ.Attributes{
+							"onclick": "signup(event, document.getElementById('name').value, document.getElementById('master_password').value)",
+							"type":    "button",
+						},
+						Class: "w-full py-3 bg-blue-800 text-white",
+					}) {
+						Sign Up
+					}
+				</div>
+			</div>
+		</div>
+		<script>
+            function setError(message) {
+                const messageElement = document.getElementById("signup-message");
+                messageElement.textContent = message;
+                messageElement.classList.remove("hidden");
+            }
+            function showCodeModal(code) {
+                document.getElementById("code-modal-code").textContent = code;
+                document.getElementById("code-modal-trigger").click();
+            }
+            async function signup(event, username, masterPassword) {
+                console.log(event);
+                event.preventDefault();
+                if (!username || !masterPassword) {
+                    setError("Fields cannot be empty.");
+                    return;
+                }
+                await fetch("/api/accounts/new", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        name: username,
+                        master_password: masterPassword,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.error) {
+                        localStorage.setItem("session_code", data.session_code);
+                        localStorage.setItem("session_code_expiry", new Date() + 1000 * 60 * 60 * 24); // 1 day
+                        showCodeModal(data.code);
+                    } else {
+                        setError(data.error || "An error occurred during signup.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error during signup:", error);
+                    setError("An unexpected error occurred. " + error.message);
+                });
+            }
+        </script>
+	}
+}

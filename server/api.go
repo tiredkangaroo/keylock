@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/tiredkangaroo/keylock/api"
@@ -12,6 +13,10 @@ func APINewAccount(s *Server) fiber.Handler {
 	return api.Handler(func(c *fiber.Ctx, req *api.NewAccountRequest) (*api.NewAccountResponse, error) {
 		id, sessionCode, code, err := s.db.SaveUser(req.Body.Name, req.Body.MasterPassword)
 		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				slog.Warn("user already exists", "name", req.Body.Name)
+				return nil, fmt.Errorf("user already exists with name \"%s\"", req.Body.Name)
+			}
 			return nil, err
 		}
 

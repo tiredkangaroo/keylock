@@ -8,7 +8,7 @@ templ:
 server:
 	@echo "Starting Air hot reload..."
 	air \
-		--build.cmd "go build -o tmp/bin/main ." \
+		--build.cmd "templ fmt . && go build -o tmp/bin/main ." \
 		--build.bin "tmp/bin/main" \
 		--build.delay "100" \
 		--build.exclude_dir "node_modules" \
@@ -18,7 +18,7 @@ server:
 
 # Watch Tailwind CSS changes
 tailwind:
-	tailwindcss -i ./web/assets/css/input.css -o ./web/assets/css/output.css --watch
+	cd web && tailwindcss -i ./assets/css/input.css -o ./assets/css/output.css --watch
 
 # Start development server with all watchers
 dev:

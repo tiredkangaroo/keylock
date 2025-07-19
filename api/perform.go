@@ -37,7 +37,7 @@ func Handler[T Request, X Response](handler func(*fiber.Ctx, T) (X, error)) func
 		}
 		resp, err := handler(c, req.(T))
 		if err != nil {
-			return apiErr(c, http.StatusInternalServerError, fmt.Errorf("handler: %w", err))
+			return apiErr(c, http.StatusInternalServerError, err)
 		}
 		return resp.Send(c)
 	}

@@ -1,10 +1,13 @@
 package layouts
 
-import "github.com/tiredkangaroo/keylock/web/components/modal"
+import (
+	"github.com/tiredkangaroo/keylock/web/components/input"
+	"github.com/tiredkangaroo/keylock/web/components/modal"
+)
 
 templ BaseLayout() {
 	<!DOCTYPE html>
-	<html lang="en" class="h-full dark">
+	<html lang="en" class="h-full">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -17,12 +20,41 @@ templ BaseLayout() {
 			<title>keylock web</title>
 		</head>
 		<body class="h-full">
-			<div class="h-full flex flex-col">
+			<div class="h-full flex flex-col bg-[#d0e7ff] text-black">
+				@modal.Script()
+				@input.Script()
 				<main class="flex-1">
-					@modal.Script()
 					{ children... }
 				</main>
 			</div>
 		</body>
+		<script>
+  // Re-initialize templUI components after HTMX swaps
+  document.body.addEventListener("htmx:afterSwap", (e) => {
+    if (window.templUI) {
+					Object.values(window.templUI).forEach(comp => {
+						comp.init?.(e.detail.elt);
+					});
+    }
+  });
+
+  // Re-initialize components after out-of-band swaps
+  document.body.addEventListener("htmx:oobAfterSwap", (e) => {
+    if (window.templUI) {
+					Object.values(window.templUI).forEach(comp => {
+						comp.init?.(e.detail.target);
+					});
+    }
+  });
+
+  // Cleanup before swap (for components with event listeners)
+  document.body.addEventListener("htmx:beforeSwap", (e) => {
+    if (window.templUI) {
+					Object.values(window.templUI).forEach(comp => {
+						comp.cleanup?.(e.detail.target);
+					});
+    }
+  });
+		</script>
 	</html>
 }

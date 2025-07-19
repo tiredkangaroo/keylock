@@ -8,10 +8,7 @@ package layouts
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import (
-	"github.com/tiredkangaroo/keylock/web/components/input"
-	"github.com/tiredkangaroo/keylock/web/components/modal"
-)
+import "github.com/tiredkangaroo/keylock/web/components/modal"
 
 func BaseLayout() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -34,19 +31,38 @@ func BaseLayout() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><!-- Tailwind CSS (output) --><link href=\"/assets/css/output.css\" rel=\"stylesheet\"><link rel=\"icon\" href=\"data:image/svg+xml,&lt;svg xmlns=&#39;http://www.w3.org/2000/svg&#39; viewBox=&#39;0 0 100 100&#39;&gt;&lt;text y=&#39;.9em&#39; font-size=&#39;90&#39;&gt;🔐&lt;/text&gt;&lt;/svg&gt;\"><title>keylock web</title></head><body class=\"h-full\"><div class=\"h-full flex flex-col bg-[#d0e7ff] text-black\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><!-- Tailwind CSS (output) --><script src=\"\"></script><link href=\"/assets/css/output.css\" rel=\"stylesheet\"><link rel=\"icon\" href=\"data:image/svg+xml,&lt;svg xmlns=&#39;http://www.w3.org/2000/svg&#39; viewBox=&#39;0 0 100 100&#39;&gt;&lt;text y=&#39;.9em&#39; font-size=&#39;90&#39;&gt;🔐&lt;/text&gt;&lt;/svg&gt;\"><title>keylock web</title></head><body class=\"w-full h-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = modal.Script().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"w-1/3 h-1/3 bg-gray-100 flex flex-col justify-center items-center relative\"><button class=\"absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-4xl\" onclick=\"document.getElementById(&#39;code-modal&#39;).classList.add(&#39;hidden&#39;); window.location.replace(&#39;/&#39;);\">&CircleTimes;</button><div class=\"text-2xl mb-4\">Use this code</div><div class=\"max-w-fit text-lg font-mono bg-gray-100 p-2 rounded-md\"><p id=\"code-modal-code\"></p></div><p class=\"mt-3\">You must remember this code.</p></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = modal.Modal(modal.ModalProps{
+			ID: "code-modal",
+			Attributes: templ.Attributes{
+				"hidden": "hidden",
+			},
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = input.Script().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"flex-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"h-full flex flex-col bg-[#d0e7ff] text-black\"><main class=\"flex-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -54,7 +70,7 @@ func BaseLayout() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</main></div></body><script>\n  // Re-initialize templUI components after HTMX swaps\n  document.body.addEventListener(\"htmx:afterSwap\", (e) => {\n    if (window.templUI) {\n\t\t\t\t\tObject.values(window.templUI).forEach(comp => {\n\t\t\t\t\t\tcomp.init?.(e.detail.elt);\n\t\t\t\t\t});\n    }\n  });\n\n  // Re-initialize components after out-of-band swaps\n  document.body.addEventListener(\"htmx:oobAfterSwap\", (e) => {\n    if (window.templUI) {\n\t\t\t\t\tObject.values(window.templUI).forEach(comp => {\n\t\t\t\t\t\tcomp.init?.(e.detail.target);\n\t\t\t\t\t});\n    }\n  });\n\n  // Cleanup before swap (for components with event listeners)\n  document.body.addEventListener(\"htmx:beforeSwap\", (e) => {\n    if (window.templUI) {\n\t\t\t\t\tObject.values(window.templUI).forEach(comp => {\n\t\t\t\t\t\tcomp.cleanup?.(e.detail.target);\n\t\t\t\t\t});\n    }\n  });\n\t\t</script></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</main></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

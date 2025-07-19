@@ -1,9 +1,6 @@
 package layouts
 
-import (
-	"github.com/tiredkangaroo/keylock/web/components/input"
-	"github.com/tiredkangaroo/keylock/web/components/modal"
-)
+import "github.com/tiredkangaroo/keylock/web/components/modal"
 
 templ BaseLayout() {
 	<!DOCTYPE html>
@@ -12,6 +9,7 @@ templ BaseLayout() {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<!-- Tailwind CSS (output) -->
+			<script src=""></script>
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<link
 				rel="icon"
@@ -19,42 +17,29 @@ templ BaseLayout() {
 			/>
 			<title>keylock web</title>
 		</head>
-		<body class="h-full">
+		<body class="w-full h-full">
+			@modal.Modal(modal.ModalProps{
+				ID: "code-modal",
+				Attributes: templ.Attributes{
+					"hidden": "hidden",
+				},
+			}) {
+				<div class="w-1/3 h-1/3 bg-gray-100 flex flex-col justify-center items-center relative">
+					// close
+					<button class="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-4xl" onclick="document.getElementById('code-modal').classList.add('hidden'); window.location.replace('/');">&CircleTimes;</button>
+					// content
+					<div class="text-2xl mb-4">Use this code</div>
+					<div class="max-w-fit text-lg font-mono bg-gray-100 p-2 rounded-md">
+						<p id="code-modal-code"></p>
+					</div>
+					<p class="mt-3">You must remember this code.</p>
+				</div>
+			}
 			<div class="h-full flex flex-col bg-[#d0e7ff] text-black">
-				@modal.Script()
-				@input.Script()
 				<main class="flex-1">
 					{ children... }
 				</main>
 			</div>
 		</body>
-		<script>
-  // Re-initialize templUI components after HTMX swaps
-  document.body.addEventListener("htmx:afterSwap", (e) => {
-    if (window.templUI) {
-					Object.values(window.templUI).forEach(comp => {
-						comp.init?.(e.detail.elt);
-					});
-    }
-  });
-
-  // Re-initialize components after out-of-band swaps
-  document.body.addEventListener("htmx:oobAfterSwap", (e) => {
-    if (window.templUI) {
-					Object.values(window.templUI).forEach(comp => {
-						comp.init?.(e.detail.target);
-					});
-    }
-  });
-
-  // Cleanup before swap (for components with event listeners)
-  document.body.addEventListener("htmx:beforeSwap", (e) => {
-    if (window.templUI) {
-					Object.values(window.templUI).forEach(comp => {
-						comp.cleanup?.(e.detail.target);
-					});
-    }
-  });
-		</script>
 	</html>
 }

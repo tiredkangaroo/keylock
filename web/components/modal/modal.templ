@@ -1,0 +1,16 @@
+package modal
+
+type ModalProps struct {
+	ID         string
+	Class      string
+	Attributes templ.Attributes
+}
+
+templ Modal(props ...ModalProps) {
+	if len(props) == 0 {
+		props = append(props, ModalProps{  })
+	}
+	<div id={ props[0].ID } class="w-full h-full modal-container {@props[0].Class} backdrop-blur-md flex flex-col justify-center items-center" { props[0].Attributes... }>
+		{ children... }
+	</div>
+}

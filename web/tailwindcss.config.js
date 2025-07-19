@@ -1,9 +1,9 @@
 module.exports = {
   content: [
-    '**/*.templ',
-    './assets/**/*.js',
-    './assets/**/*.html',
-    "./components/**/*.templ",
+    './views/**/*.templ',
+    './components/**/*.templ',
+    './layouts/**/*.templ',
+    './**/*.{html,js,css,go}',
   ],
   theme: {
     extend: {},

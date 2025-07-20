@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -28,7 +27,6 @@ func SetGroup(db *database.DB, sessionMiddleware fiber.Handler, router fiber.Rou
 		if err != nil {
 			return c.Status(http.StatusBadRequest).SendString("error fetching passwords: " + err.Error())
 		}
-		fmt.Println("31", pwds)
 		c.Set("Content-Type", fiber.MIMETextHTMLCharsetUTF8)
 		return views.Home(user, pwds).Render(context.Background(), c.Response().BodyWriter())
 	})

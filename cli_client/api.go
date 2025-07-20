@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/tiredkangaroo/keylock/api"
+	"github.com/tiredkangaroo/keylock/utils"
 )
 
 const SERVER = "localhost:8755"
@@ -167,7 +168,7 @@ func listPasswords() error {
 	}
 	fmt.Println("Your passwords:")
 	for _, pwd := range resp.Body.Passwords {
-		fmt.Printf("- %s (id: %d, created on: %s)\n", pwd.Name, pwd.ID, formatTime(pwd.CreatedAt))
+		fmt.Printf("- %s (id: %d, created on: %s)\n", pwd.Name, pwd.ID, utils.FormatTime(pwd.CreatedAt))
 	}
 	return nil
 }

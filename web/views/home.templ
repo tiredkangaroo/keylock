@@ -1,9 +1,12 @@
 package views
 
 import (
+	"fmt"
 	"github.com/tiredkangaroo/keylock/database"
+	"github.com/tiredkangaroo/keylock/utils"
 	"github.com/tiredkangaroo/keylock/web/layouts"
 	"math/rand/v2"
+	"strconv"
 )
 
 var greetings = []string{
@@ -22,12 +25,167 @@ templ Home(user *database.User, pwds []database.Password) {
 			<h1 class="text-3xl font-semibold">{ greetings[rand.IntN(len(greetings))] }, { user.Name }!</h1>
 			<div class="w-full h-full mt-4 ml-2">
 				<h2 class="font-medium text-xl">Your Passwords</h2>
-				for _, pwd := range pwds {
-					<div class="rounded shadow mb-4">
-						{ pwd.Name }
-					</div>
-				}
+				<div class="w-full h-full flex flex-wrap gap-8 mt-2">
+					for _, pwd := range pwds {
+						@Password(pwd)
+					}
+				</div>
 			</div>
 		</div>
 	}
+}
+
+templ Password(pwd database.Password) {
+	<div class="w-[max(34%,250px)] h-[max(34%,250px)] min-w-fit min-h-fit max-w-[90%] bg-white p-4 rounded-lg shadow-md flex flex-col justify-center items-center mr-2">
+		<h3 class="text-center text-lg font-semibold">{ pwd.Name }</h3>
+		<p class="text-sm text-gray-600 mt-1">{ utils.FormatTime(pwd.CreatedAt) }</p>
+		// show button view
+		<button
+			id={ fmt.Sprintf("show-password-button-%d", pwd.ID) }
+			class="bg-blue-600 rounded-md text-white py-1 px-4 text-md mt-8 cursor-pointer"
+			onClick={ templ.ComponentScript{Call: fmt.Sprintf("retrievePassword(%d, %d, '%s')", pwd.UserID, pwd.ID, pwd.Name)} }
+		>Show</button> // default on page load is the show button
+		// password value view
+		<div id={ fmt.Sprintf("password-value-container-%d", pwd.ID) } class="flex gap-4 items-center justify-center hidden">
+			<p class="mt-8">Password: <span class="font-mono" id={ fmt.Sprintf("password-value-%d", pwd.ID) }></span></p>
+			<button
+				id={ fmt.Sprintf("hide-password-button-%d", pwd.ID) }
+				class="bg-red-600 rounded-md text-white py-1 px-4 text-md mt-8 cursor-pointer"
+				onClick={ templ.ComponentScript{Call: fmt.Sprintf("viewShowButton(%d)", pwd.ID)} }
+			>Hide</button>
+		</div>
+		// prompt for code view
+		<div id={ "prompt-code-" + strconv.Itoa(int(pwd.ID)) } class="flex-col items-center justify-center mt-4 hidden">
+			// this technically dq's the code from 32-bit systems
+			<div id={ fmt.Sprintf("prompt-code-message-%d", pwd.ID) } class="py-3 px-2 bg-red-100 border-1 rounded-md border-red-700 hidden wrap-break-word w-full"></div>
+			<p class="text-sm text-gray-600 mt-2">Enter the 5-digit code:</p>
+			<input id={ fmt.Sprintf("code-input-%d", pwd.ID) } type="number" class="border border-gray-300 rounded-md p-1 mt-1 w-full" placeholder="Enter code" required/>
+			<button
+				id={ fmt.Sprintf("submit-code-button-%d", pwd.ID) }
+				class="bg-blue-600 rounded-md text-white py-1 px-2 text-md mt-2 cursor-pointer"
+				onClick={ templ.ComponentScript{
+				Call: fmt.Sprintf("setCodeValue(document.getElementById('code-input-%d'), %d, %d, '%s')", pwd.ID, pwd.UserID, pwd.ID, pwd.Name),
+			} }
+			>Submit</button>
+		</div>
+	</div>
+	<script>
+		function hideShowButton(id) {
+			document.getElementById(`show-password-button-${id}`).hidden = true;
+		}
+		function hidePromptCode(id) {
+			document.getElementById(`prompt-code-${id}`).classList.add("hidden");
+		}
+		function hidePasswordValue(id) {
+			document.getElementById(`password-value-container-${id}`).classList.add("hidden");
+			document.getElementById(`password-value-${id}`).innerText = ""; // clear the password value
+		}
+		function hideMessage(id) {
+			const messageElement = document.getElementById(`prompt-code-message-${id}`);
+			messageElement.classList.add("hidden");
+		}
+		
+		function showMessage(id, message) {
+			const messageElement = document.getElementById(`prompt-code-message-${id}`);
+			messageElement.innerText = message;
+			messageElement.classList.remove("hidden");
+		}
+		function viewShowButton(id) {
+			hideMessage(id); // hide any previous messages
+			hidePasswordValue(id); // hide the password value if it was shown
+			hidePromptCode(id); // hide the prompt code if it was shown
+			document.getElementById(`show-password-button-${id}`).hidden = false;
+		}
+		function viewPassword(id, password) {
+			hideMessage(id); // hide any previous messages
+			hidePromptCode(id); // hide the prompt code if it was shown
+			hideShowButton(id); // hide the show button if it was shown
+			// set the password value
+			document.getElementById(`password-value-${id}`).innerText = password;
+			// unhide the password value container
+			document.getElementById(`password-value-container-${id}`).classList.remove("hidden");
+		}
+		function viewPromptCode(id) {
+			hideMessage(id); // hide any previous messages
+			hidePasswordValue(id); // hide the password value if it was shown
+			hideShowButton(id); // hide the show button if it was shown
+			document.getElementById(`prompt-code-${id}`).classList.remove("hidden");
+		}
+	
+		function retrievePassword(user_id, id, name) {
+			hideMessage(id); // hide any previous messages
+			
+			const code = sessionStorage.getItem("code");
+			if (!code) {
+				getCode(id);
+				return;
+			}
+			const key2 = localStorage.getItem("session_code") + code; // code is stored as hex so we can just combine
+			
+			fetch(`/api/passwords/retrieve`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					user_id: user_id,
+					name: name,
+					key2: key2,
+				}),
+			}).then(async (response) => {
+				const data = await response.json();
+				if (response.ok) {
+					console.log(data);
+					const password = data.value;
+					viewPassword(id, password); // show the password
+				} else {
+					showMessage(id, data.error || "An error occurred while retrieving the password.");
+				}
+			}).catch((error) => {
+				console.error("Error retrieving password:", error);
+				showMessage(id, "An error occurred while retrieving the password.");
+			});
+		}
+		function getCode(id) {
+			viewPromptCode(id); // show the prompt code
+		}
+		function uint16ToHex(value) {
+				if (value < 0 || value > 0xFFFF || !Number.isInteger(value)) {
+					throw new Error("Invalid code")
+				}
+
+				// bufer
+				const buffer = new ArrayBuffer(2);
+				const view = new DataView(buffer);
+
+				// third arg is littleendian (false bc we big boys 'round here)
+				view.setUint16(0, value, false); 
+
+				// each byte to hex
+				return [...new Uint8Array(buffer)]
+					.map(b => b.toString(16).padStart(2, '0'))
+					.join('');
+		}
+		function setCodeValue(input, user_id, id, name) {
+			const code = input.value;
+			if (code.length !== 5) {
+				return;
+			}
+			const codeNumber = parseInt(code);
+			if (isNaN(codeNumber)) {
+				showMessage(id, "Please enter a valid 5-digit code.");
+				return;
+			}
+			let v 
+			try {
+				v = uint16ToHex(codeNumber);
+			} catch {
+				showMessage(id, "Please enter the right 5-digit code.");
+				return;
+			}
+			sessionStorage.setItem("code", v);
+			hidePromptCode(id); // hide the prompt code
+			retrievePassword(user_id, id, name);
+		}
+	</script>
 }

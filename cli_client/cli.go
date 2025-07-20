@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os/user"
 )
 
@@ -16,6 +17,7 @@ const (
 	CommandSavePassword
 	CommandRetrievePassword
 	CommandListPasswords
+	CommandDebugDump
 )
 
 var cmd Command
@@ -41,6 +43,8 @@ func init() {
 		cmd = CommandRetrievePassword
 	case "list-passwords":
 		cmd = CommandListPasswords
+	case "debug-dump":
+		cmd = CommandDebugDump
 	default:
 		cmd = CommandUnknown
 	}
@@ -73,6 +77,22 @@ func main() {
 	case CommandListPasswords:
 		if err := listPasswords(); err != nil {
 			println("\nError: ", err.Error())
+		}
+	case CommandDebugDump:
+		// this command just dumps information
+		krdata, err := getKeyringData()
+		if err != nil {
+			fmt.Println("retrieving keyring data failed:", err)
+			return
+		} else {
+			fmt.Printf("user id: %d\n", krdata.UserID)
+			fmt.Printf("session token: %s\n", krdata.SessionToken)
+			fmt.Printf("session code: %s\n", krdata.SessionCode)
+		}
+		fmt.Println("listing passwords.")
+		if err := listPasswords(); err != nil {
+			fmt.Println("listing passwords failed:", err)
+			return
 		}
 	default:
 		println("Unknown command. Available commands: signup, me, set-password, get-password, list-passwords")

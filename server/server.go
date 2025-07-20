@@ -36,7 +36,7 @@ func (s *Server) Start() error {
 	sessionMiddleware := middlewares.SessionMiddleware(s.db)
 
 	webGroup := app.Group("")
-	web.SetGroup(webGroup)
+	web.SetGroup(s.db, sessionMiddleware, webGroup)
 
 	api := app.Group("/api")
 	api.Post("/accounts/new", APINewAccount(s))

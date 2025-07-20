@@ -47,7 +47,7 @@ func BaseLayout() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"w-1/3 h-1/3 bg-gray-100 flex flex-col justify-center items-center relative\"><button class=\"absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-4xl\" onclick=\"document.getElementById(&#39;code-modal&#39;).classList.add(&#39;hidden&#39;); window.location.replace(&#39;/&#39;);\">&CircleTimes;</button><div class=\"text-2xl mb-4\">Use this code</div><div class=\"max-w-fit text-lg font-mono bg-gray-100 p-2 rounded-md\"><p id=\"code-modal-code\"></p></div><p class=\"mt-3\">You must remember this code.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"w-1/3 h-1/3 bg-gray-100 flex flex-col justify-center items-center relative\"><button class=\"absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-4xl\" onclick=\"window.location.replace(&#39;/&#39;);\">&CircleTimes;</button><div class=\"text-2xl mb-4\">Use this code</div><div class=\"max-w-fit text-lg font-mono bg-gray-100 p-2 rounded-md\"><p id=\"code-modal-code\"></p></div><p class=\"mt-3\">You must remember this code.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -62,7 +62,7 @@ func BaseLayout() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"h-full flex flex-col bg-[#d0e7ff] text-black\"><main class=\"flex-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"h-full flex flex-col bg-[#e5f2ff] text-black\"><main class=\"flex-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

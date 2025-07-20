@@ -1,0 +1,33 @@
+package views
+
+import "github.com/tiredkangaroo/keylock/web/layouts"
+
+templ Access() {
+	@layouts.BaseLayout() {
+		<div class="w-full h-full flex flex-col justify-center items-center">
+			<div class="text-4xl mb-6 flex flex-col gap-1">
+				keylock 🔐
+				<label class="text-sm text-center">your password manager</label>
+			</div>
+			<div class="w-[25%] min-w-fit grid gap-2">
+				<div id="home-message" class="py-3 px-2 bg-green-100 border-1 rounded-md border-green-700 hidden wrap-break-word w-full"></div>
+				<div class="w-full grid gap-6">
+					<button
+						onclick="window.location.replace('/signup')"
+						type="button"
+						class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded"
+					>
+						Sign Up
+					</button>
+					<button
+						onclick="window.location.replace('/login')"
+						type="button"
+						class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded"
+					>
+						Log In
+					</button>
+				</div>
+			</div>
+		</div>
+	}
+}

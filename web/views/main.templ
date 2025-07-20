@@ -18,7 +18,7 @@ templ Main() {
 		</div>
 		<script>
 			const redirectHome = () => window.location.replace("/home");
-			const redirectPromptLoginSignup = () => window.location.replace("/signup");
+			const redirectPromptLoginSignup = () => window.location.replace("/access");
 			function situationalRedirect() {
 				if (localStorage.getItem("session_code")) {
 					// session_code expiry is more than 10 minutes away

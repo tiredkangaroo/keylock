@@ -1,0 +1,33 @@
+package views
+
+import (
+	"github.com/tiredkangaroo/keylock/database"
+	"github.com/tiredkangaroo/keylock/web/layouts"
+	"math/rand/v2"
+)
+
+var greetings = []string{
+	"Hello",
+	"Greetings",
+	"Great to see you",
+	"Welcome back",
+	"Hi",
+	"Hey there",
+}
+
+templ Home(user *database.User, pwds []database.Password) {
+	// Select a random index from the greetings slice
+	@layouts.BaseLayout() {
+		<div class="w-full h-full flex flex-col pl-2 pt-2">
+			<h1 class="text-3xl font-semibold">{ greetings[rand.IntN(len(greetings))] }, { user.Name }!</h1>
+			<div class="w-full h-full mt-4 ml-2">
+				<h2 class="font-medium text-xl">Your Passwords</h2>
+				for _, pwd := range pwds {
+					<div class="rounded shadow mb-4">
+						{ pwd.Name }
+					</div>
+				}
+			</div>
+		</div>
+	}
+}
